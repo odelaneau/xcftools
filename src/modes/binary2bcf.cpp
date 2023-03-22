@@ -26,7 +26,7 @@
 #include <utils/xcf.h>
 
 #include <containers/bitvector.h>
-#include <objects/rare_genotype.h>
+#include <objects/sparse_genotype.h>
 
 using namespace std;
 
@@ -126,7 +126,7 @@ void binary2bcf::convert(string finput, string foutput) {
 			std::fill(output_buffer, output_buffer+2*nsamples, bcf_gt_unphased(major));
 			//Loop over sparse genotypes
 			for(uint32_t r = 0 ; r < n_elements ; r++) {
-				rare_genotype rg;
+				sparse_genotype rg;
 				rg.set(input_buffer[r]);
 				if (rg.mis) {
 					output_buffer[2*rg.idx+0] = bcf_gt_missing;

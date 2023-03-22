@@ -26,7 +26,7 @@
 #include <utils/xcf.h>
 
 #include <containers/bitvector.h>
-#include <objects/rare_genotype.h>
+#include <objects/sparse_genotype.h>
 
 using namespace std;
 
@@ -112,7 +112,7 @@ void bcf2binary::convert(string finput, string foutput) {
 			if (mode == CONV_BCF_SG) {
 				if (rare) {
 					if (a0 == minor || a1 == minor || mi)
-						output_buffer[n_sparse++] = rare_genotype(i, (a0!=a1), mi, a0, a1, 0).get();
+						output_buffer[n_sparse++] = sparse_genotype(i, (a0!=a1), mi, a0, a1, 0).get();
 				} else {
 					if (mi) { binary_buffer.set(2*i+0, true); binary_buffer.set(2*i+1, false); }		//Missing as 10
 					else if (a0 == a1) { binary_buffer.set(2*i+0, a0); binary_buffer.set(2*i+1, a1); }
