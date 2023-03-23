@@ -21,7 +21,7 @@
  ******************************************************************************/
 
 #define _DECLARE_TOOLBOX_HERE
-#include <converter/converter_header.h>
+#include <viewer/viewer_header.h>
 
 #include "../versions/versions.h"
 
@@ -53,9 +53,9 @@ int main(int argc, char ** argv) {
 		string mode = string(argv[1]);
 
 		if (mode == "view") {
-			converter().convert(args);
+			viewer().view(args);
 		} else if (mode == "cat") {
-			converter().convert(args);
+
 		}
 	}
 	return 0;

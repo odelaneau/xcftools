@@ -20,31 +20,31 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include <converter/converter_header.h>
+#include <viewer/viewer_header.h>
 
 using namespace std;
 
-converter::converter() {
+viewer::viewer() {
 }
 
-converter::~converter() {
+viewer::~viewer() {
 }
 
-void converter::convert(vector < string > & args) {
+void viewer::view(vector < string > & args) {
 	declare_options();
 	parse_command_line(args);
 	check_options();
 	verbose_files();
 	verbose_options();
 	read_files_and_initialise();
-	convert();
+	view();
 	write_files_and_finalise();
 }
 
-bool converter::isBCF(std::string format) {
+bool viewer::isBCF(std::string format) {
 	return (format == "bcf");
 }
 
-bool converter::isXCF(std::string format) {
+bool viewer::isXCF(std::string format) {
 	return (format == "bh" || format == "bg" ||format == "sh" ||format == "sg");
 }

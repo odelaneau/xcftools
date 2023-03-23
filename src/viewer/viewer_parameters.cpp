@@ -22,11 +22,11 @@
 
 #include "../../versions/versions.h"
 
-#include <converter/converter_header.h>
+#include <viewer/viewer_header.h>
 
 using namespace std;
 
-void converter::declare_options() {
+void viewer::declare_options() {
 	bpo::options_description opt_base ("Basic options");
 	opt_base.add_options()
 			("help", "Produce help message")
@@ -48,7 +48,7 @@ void converter::declare_options() {
 	descriptions.add(opt_base).add(opt_input).add(opt_output);
 }
 
-void converter::parse_command_line(vector < string > & args) {
+void viewer::parse_command_line(vector < string > & args) {
 	try {
 		bpo::store(bpo::command_line_parser(args).options(descriptions).run(), options);
 		bpo::notify(options);
@@ -69,7 +69,7 @@ void converter::parse_command_line(vector < string > & args) {
 	vrb.bullet("Run date      : " + tac.date());
 }
 
-void converter::check_options() {
+void viewer::check_options() {
 	if (!options.count("input")) vrb.error("--input needs to be specified");
 	if (!options.count("region")) vrb.error("--region needs to be specified");
 	if (!options.count("format")) vrb.error("--format needs to be specified");
@@ -85,7 +85,7 @@ void converter::check_options() {
 		vrb.error("You must use at least 1 thread");
 }
 
-void converter::verbose_files() {
+void viewer::verbose_files() {
 	vrb.title("Files:");
 	string format = options["format"].as < string > ();
 	string output = options["output"].as < string > ();
@@ -100,7 +100,7 @@ void converter::verbose_files() {
 	if (options.count("log")) vrb.bullet("Output LOG    : [" + options["log"].as < string > () + "]");
 }
 
-void converter::verbose_options() {
+void viewer::verbose_options() {
 	vrb.title("Parameters:");
 	vrb.bullet("Seed    : " + stb.str(options["seed"].as < int > ()));
 	vrb.bullet("Threads : " + stb.str(options["thread"].as < int > ()) + " threads");

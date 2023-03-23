@@ -20,14 +20,14 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include <converter/converter_header.h>
+#include <viewer/viewer_header.h>
 
 #include <modes/bcf2binary.h>
 #include <modes/binary2bcf.h>
 
 using namespace std;
 
-void converter::convert() {
+void viewer::view() {
 	//Retrieve parameter values
 	string region = options["region"].as < string > ();
 	string format = options["format"].as < string > ();

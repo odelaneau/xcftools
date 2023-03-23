@@ -20,10 +20,11 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#include <converter/converter_header.h>
+#include <viewer/viewer_header.h>
 
-void converter::read_files_and_initialise() {
+void viewer::write_files_and_finalise() {
+	vrb.title("Finalization:");
 
-	//step0: Initialize seed
-	rng.setSeed(options["seed"].as < int > ());
+	//step0: Measure overall running time
+	vrb.bullet("Total running time = " + stb.str(tac.abs_time()) + " seconds");
 }

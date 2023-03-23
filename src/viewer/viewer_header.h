@@ -25,22 +25,22 @@
 
 #include <utils/otools.h>
 
-class converter {
+class viewer {
 public:
 	//COMMAND LINE OPTIONS
 	bpo::options_description descriptions;
 	bpo::variables_map options;
 
 	//CONSTRUCTOR
-	converter();
-	~converter();
+	viewer();
+	~viewer();
 
 	//ROUTINES
 	bool isBCF(std::string);
 	bool isXCF(std::string);
 
 	//METHODS
-	void convert();
+	void view();
 
 
 	//PARAMETERS
@@ -52,7 +52,7 @@ public:
 
 	//
 	void read_files_and_initialise();
-	void convert(std::vector < std::string > &);
+	void view(std::vector < std::string > &);
 	void write_files_and_finalise();
 };
 
