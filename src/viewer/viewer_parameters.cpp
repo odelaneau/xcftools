@@ -65,7 +65,7 @@ void viewer::parse_command_line(vector < string > & args) {
 	vrb.title("[XCFtools] Convert from/to XCF files");
 	vrb.bullet("Authors       : Olivier DELANEAU, University of Lausanne");
 	vrb.bullet("Contact       : olivier.delaneau@gmail.com");
-	vrb.bullet("Version       : 5." + string(XCFTLS_VERSION) + " / commit = " + string(__COMMIT_ID__) + " / release = " + string (__COMMIT_DATE__));
+	vrb.bullet("Version       : 1." + string(XCFTLS_VERSION) + " / commit = " + string(__COMMIT_ID__) + " / release = " + string (__COMMIT_DATE__));
 	vrb.bullet("Run date      : " + tac.date());
 }
 
