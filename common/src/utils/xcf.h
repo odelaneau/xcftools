@@ -170,6 +170,8 @@ public:
 	std::vector < int32_t > bin_type;			//Type of Binary record					//Integer 1 in INFO/SEEK field
 	std::vector < uint64_t > bin_seek;			//Location of Binary record				//Integer 2 and 3 in INFO/SEEK field
 	std::vector < uint32_t > bin_size;			//Amount of Binary records in bytes		//Integer 4 in INFO/SEEK field
+	std::vector < uint64_t > bin_curr;			//Location of Binary record				//Integer 2 and 3 in INFO/SEEK field
+
 
 	//CONSTRUCTOR
 	xcf_reader(std::string region, uint32_t nthreads) : pos(0), multi(false) {
@@ -205,13 +207,14 @@ public:
 		}
 
 		//Allocation for Binary record information
-		sync_lines.push_back(bcf_init());
+		sync_lines.push_back(NULL);
 		sync_types.push_back(FILE_VOID);
 		sync_flags.push_back(false);
 		bin_fds.push_back(std::ifstream());
 		bin_type.push_back(0);
 		bin_seek.push_back(0);
 		bin_size.push_back(0);
+		bin_curr.push_back(0);
 		AC.push_back(0);
 		AN.push_back(0);
 
@@ -432,12 +435,46 @@ public:
 
 		//Data is in binary file
 		else {
-			//Seek to right position
-			bin_fds[file].seekg(bin_seek[file], bin_fds[file].beg);
-
+			if (bin_curr[file] != bin_seek[file])
+			{
+				//Seek to right position
+				bin_fds[file].seekg(bin_seek[file], bin_fds[file].beg);
+			}
 			//Read data in Binary file
 			bin_fds[file].read(*buffer, bin_size[file]);
+			bin_curr[file] = bin_seek[file] + bin_size[file];
+			//Return amount of data in bytes read in file
+			return bin_size[file];
+		}
+	}
 
+	int32_t readRecord(uint32_t file, char * buffer) {
+
+		//No data in this file for the current record
+		if (!sync_flags[file]) return 0;
+
+		//No data since file is empty
+		if (sync_types[file] == FILE_VOID) return 0;
+
+		//Data is in BCF file
+		if (sync_types[file] == FILE_BCF) {
+			//Read genotypes [assuming buffer to be allocated!]
+			int32_t ndp = ind_number[file]*2;
+			int32_t rdp = bcf_get_genotypes(sync_reader->readers[file].header, sync_lines[file], buffer, &ndp);
+			assert(rdp == (ind_number[file]*2));
+			return ndp * sizeof(int32_t);
+		}
+
+		//Data is in binary file
+		else {
+			if (bin_curr[file] != bin_seek[file])
+			{
+				//Seek to right position
+				bin_fds[file].seekg(bin_seek[file], bin_fds[file].beg);
+			}
+			//Read data in Binary file
+			bin_fds[file].read(buffer, bin_size[file]);
+			bin_curr[file] = bin_seek[file] + bin_size[file];
 			//Return amount of data in bytes read in file
 			return bin_size[file];
 		}
