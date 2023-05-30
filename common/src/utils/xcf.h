@@ -345,7 +345,7 @@ public:
 					if (firstfile) {
 
 						//Get variant information
-						chr = bcf_hdr_id2name(sync_reader->readers[0].header, sync_lines[r]->rid);
+						chr = bcf_hdr_id2name(sync_reader->readers[r].header, sync_lines[r]->rid);
 						pos = sync_lines[r]->pos + 1;
 						rsid = std::string(sync_lines[r]->d.id);
 						ref = std::string(sync_lines[r]->d.allele[0]);
