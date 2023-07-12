@@ -434,9 +434,9 @@ public:
 			int32_t ndp = 0;//ind_number[file]*2;
 			int32_t rdp = bcf_get_genotypes(sync_reader->readers[file].header, sync_lines[file], buffer, &ndp);
 			int32_t max_ploidy = rdp/ind_number[file];
-			assert ( rdp>=0 && max_ploidy>0); // GT present
 			if (ploidy[file] < 0) ploidy[file] = rdp/ind_number[file];
-			else assert(max_ploidy==ploidy[file]);
+			assert ( rdp>=0 && max_ploidy>0); // GT present
+			assert(max_ploidy==ploidy[file]);
 			//assert(rdp == (ind_number[file]*2));
 			return ndp * sizeof(int32_t);
 		}
@@ -470,9 +470,9 @@ public:
 			int32_t ndp = 0;//ind_number[file]*2;
 			int32_t rdp = bcf_get_genotypes(sync_reader->readers[file].header, sync_lines[file], buffer, &ndp);
 			int32_t max_ploidy = rdp/ind_number[file];
-			assert ( rdp>=0 && max_ploidy>0); // GT present
 			if (ploidy[file] < 0) ploidy[file] = rdp/ind_number[file];
-			else assert(max_ploidy==ploidy[file]);
+			assert ( rdp>=0 && max_ploidy>0); // GT present
+			assert(max_ploidy==ploidy[file]);
 			//assert(rdp == (ind_number[file]*2));
 			return ndp * sizeof(int32_t);
 		}
