@@ -152,6 +152,7 @@ public:
 	std::string rsid;
 	std::vector < uint32_t > AC;
 	std::vector < uint32_t > AN;
+	std::vector < int32_t > ploidy;
 
 	//INFO field
 	int32_t nAC, nAN, nSK;
@@ -217,6 +218,7 @@ public:
 		bin_curr.push_back(0);
 		AC.push_back(0);
 		AN.push_back(0);
+		ploidy.push_back(-1);
 
 		//Check header for associated binary file
 		int32_t flagSEEK = bcf_hdr_idinfo_exists(sync_reader->readers[sync_number].header, BCF_HL_INFO, bcf_hdr_id2int(sync_reader->readers[sync_number].header, BCF_DT_ID, "SEEK"));
@@ -308,6 +310,8 @@ public:
 	uint32_t getAN() { return std::accumulate(AN.begin(), AN.end(), 0); }
 	float getAF(uint32_t file) { return AC[file]*1.0f/AN[file]; }
 	float getAF() { return std::accumulate(AC.begin(), AC.end(), 0)*1.0f/std::accumulate(AN.begin(), AN.end(), 0); }
+
+	int32_t getPloidy(uint32_t file) { return ploidy[file]; }
 
 
 
@@ -427,9 +431,13 @@ public:
 		//Data is in BCF file
 		if (sync_types[file] == FILE_BCF) {
 			//Read genotypes [assuming buffer to be allocated!]
-			int32_t ndp = ind_number[file]*2;
+			int32_t ndp = 0;//ind_number[file]*2;
 			int32_t rdp = bcf_get_genotypes(sync_reader->readers[file].header, sync_lines[file], buffer, &ndp);
-			assert(rdp == (ind_number[file]*2));
+			int32_t max_ploidy = rdp/ind_number[file];
+			assert ( rdp>=0 && max_ploidy>0); // GT present
+			if (ploidy[file] < 0) ploidy[file] = rdp/ind_number[file];
+			else assert(max_ploidy==ploidy[file]);
+			//assert(rdp == (ind_number[file]*2));
 			return ndp * sizeof(int32_t);
 		}
 
@@ -459,9 +467,13 @@ public:
 		//Data is in BCF file
 		if (sync_types[file] == FILE_BCF) {
 			//Read genotypes [assuming buffer to be allocated!]
-			int32_t ndp = ind_number[file]*2;
+			int32_t ndp = 0;//ind_number[file]*2;
 			int32_t rdp = bcf_get_genotypes(sync_reader->readers[file].header, sync_lines[file], buffer, &ndp);
-			assert(rdp == (ind_number[file]*2));
+			int32_t max_ploidy = rdp/ind_number[file];
+			assert ( rdp>=0 && max_ploidy>0); // GT present
+			if (ploidy[file] < 0) ploidy[file] = rdp/ind_number[file];
+			else assert(max_ploidy==ploidy[file]);
+			//assert(rdp == (ind_number[file]*2));
 			return ndp * sizeof(int32_t);
 		}
 
