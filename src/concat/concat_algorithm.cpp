@@ -25,7 +25,6 @@
 
 #include <filesystem>
 #include <concat/concat_header.h>
-#include <utils/xcf.h>
 #include <htslib/hts.h>
 #include <htslib/khash.h>
 #include <htslib/bgzf.h>
@@ -58,12 +57,14 @@ void concat::run() {
 void concat::concat_naive()
 {
 	tac.clock();
-	concat_naive_check_headers();
+	const int nthreads = options["thread"].as < int > ();
+	if (nthreads < 1) vrb.error("Number of threads should be a positive integer.");
 	vrb.title("Concatenating files:");
 	std::string fname = options["output"].as < std::string > ();
-	xcf_writer XW(fname, false, 1);
+	xcf_writer XW(fname, false, nthreads);
 	uint64_t offset_seek = 0;
 
+	concat_naive_check_headers(XW, fname);
     for (size_t i=0; i<filenames.size(); i++)
     {
     	tac.clock();
@@ -72,17 +73,6 @@ void concat::concat_naive()
     	const int32_t idx_file = XR.addFile(filenames[i]);
     	const int32_t type = XR.typeFile(idx_file);
     	if (type != FILE_BINARY) vrb.error("[" + filenames[i] + "] is not a XCF file");
-
-    	if (i==0)
-    	{
-    		XW.writeHeader(XR.sync_reader->readers[0].header);
-    		if (!std::filesystem::exists(stb.remove_extension(filenames[i]) + ".fam")) vrb.error("File does not exists: " + stb.remove_extension(filenames[i]) + ".bin");
-    		std::ifstream fam_ifile(stb.remove_extension(filenames[i]) + ".fam");
-    		std::ofstream fam_ofile(stb.remove_extension(fname) + ".fam");
-    		fam_ofile << fam_ifile.rdbuf();
-    		fam_ofile.close();
-			fam_ifile.close();
-    	}
 
     	while (XR.nextRecord())
     	{
@@ -107,15 +97,18 @@ void concat::concat_naive()
 // This is a C++ friendly modification of vcfconcat.c from bcftools.
 // Copyright (C) 2013-2023 Genome Research Ltd.
 // Author: Petr Danecek <pd3@sanger.ac.uk>
-void concat::concat_naive_check_headers()
+void concat::concat_naive_check_headers(xcf_writer& XW, const std::string& fname)
 {
+	assert(nfiles>0 && filenames.size()>0);
     vrb.print2("  * Checking the headers of " + stb.str(nfiles) + " files");
     bcf_hdr_t *hdr0 = NULL;
+    bcf_hdr_t * out_hdr = NULL;
     int i,j;
     for (i=0; i<filenames.size(); i++)
     {
         htsFile *fp = hts_open(filenames[i].c_str(), "r"); if ( !fp ) vrb.error("Failed to open: " + filenames[i]);
         bcf_hdr_t *hdr = bcf_hdr_read(fp); if ( !hdr ) vrb.error("Failed to parse header: " + filenames[i]);
+        out_hdr = bcf_hdr_merge(out_hdr,hdr);
         htsFormat type = *hts_get_format(fp);
         hts_close(fp);
 
@@ -144,6 +137,18 @@ void concat::concat_naive_check_headers()
     }
     if ( hdr0 ) bcf_hdr_destroy(hdr0);
     vrb.print(". Done, the headers are compatible.");
+
+    vrb.print2("  * Writing header and .fam file");
+    i=0;
+    XW.writeHeader(out_hdr);
+	if (!std::filesystem::exists(stb.remove_extension(filenames[i]) + ".fam")) vrb.error("File does not exists: " + stb.remove_extension(filenames[i]) + ".fam");
+	std::ifstream fam_ifile(stb.remove_extension(filenames[i]) + ".fam");
+	std::ofstream fam_ofile(stb.remove_extension(fname) + ".fam");
+	fam_ofile << fam_ifile.rdbuf();
+	fam_ofile.close();
+	fam_ifile.close();
+    if (out_hdr) bcf_hdr_destroy(out_hdr);
+    vrb.print(". Done, files written. Proceeding with concatenation.");
 }
 
 // This is a C++ friendly modification of vcfconcat.c from bcftools.
@@ -183,9 +188,11 @@ void concat::check_hrecs(const bcf_hdr_t *hdr0, const bcf_hdr_t *hdr, const char
 void concat::ligate()
 {
 	tac.clock();
+	const int nthreads = options["thread"].as < int > ();
+	if (nthreads < 1) vrb.error("Number of threads should be a positive integer.");
 	vrb.title("Ligating chunks");
 	std::string fname = options["output"].as < std::string > ();
-	xcf_writer XW(fname, false, 1);
+	xcf_writer XW(fname, false, nthreads);
 	uint64_t offset_seek = 0;
 
 	bcf_srs_t * sr =  bcf_sr_init();

@@ -24,6 +24,7 @@
 #define _CONCAT_H
 
 #include <utils/otools.h>
+#include <utils/xcf.h>
 
 class concat {
 public:
@@ -69,7 +70,7 @@ public:
 	void ligate();
 	void write_files_and_finalise();
 	//Helpers
-	void concat_naive_check_headers();
+	void concat_naive_check_headers(xcf_writer& XW, const std::string& fname);
 	void check_hrecs(const bcf_hdr_t *hdr0, const bcf_hdr_t *hdr, const char *fname0, const char *fname);
 	void scan_overlap(const int ifname,const char* seek_chr, int seek_pos);
 	void update_distances();
