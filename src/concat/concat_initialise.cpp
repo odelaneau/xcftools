@@ -1,5 +1,8 @@
 /*******************************************************************************
+ * Copyright (C) 2022-2023 Simone Rubinacci
  * Copyright (C) 2022-2023 Olivier Delaneau
+ *
+ * MIT Licence
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,45 +23,31 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#define _DECLARE_TOOLBOX_HERE
-#include <viewer/viewer_header.h>
 #include <concat/concat_header.h>
+#include <utils/xcf.h>
 
-#include "../versions/versions.h"
+void concat::read_files_and_initialise() {
+	//step0: Initialize seed & other
+	rng.setSeed(options["seed"].as < int > ());
 
-using namespace std;
+	//step1:read filenames
+	std::string buffer;
+	std::string filelist = options["input"].as < std::string > ();
+	vrb.title("Read filenames in [" + filelist + "]");
+	input_file fd(filelist);
+	while (getline(fd, buffer))
+	{
+		filenames.push_back(buffer);
+		xcf_reader XR(1);
+		int32_t idx_file = XR.addFile(buffer);
 
-int main(int argc, char ** argv) {
-	vector < string > args;
-
-	string mode = (argc>1)?string(argv[1]):"";
-
-	if (argc == 1 || (mode != "view" && mode != "concat")) {
-
-		vrb.title("[XCFtools] Manage XCF files");
-		vrb.bullet("Authors       : Olivier DELANEAU, University of Lausanne");
-		vrb.bullet("Contact       : olivier.delaneau@gmail.com");
-		vrb.bullet("Version       : 5." + string(XCFTLS_VERSION) + " / commit = " + string(__COMMIT_ID__) + " / release = " + string (__COMMIT_DATE__));
-		vrb.bullet("Run date      : " + tac.date());
-
-		//List possible modes
-		vrb.title("Supported modes:");
-		vrb.bullet("[view]\t| Converts between XCF and BCF files");
-		vrb.bullet("[concat]\t| Concat multiple XCF files together");
-
-	} else {
-		//Get args
-		for (int a = 2 ; a < argc ; a ++) args.push_back(string(argv[a]));
-
-		//
-		string mode = string(argv[1]);
-
-		if (mode == "view") {
-			viewer().view(args);
-		} else if (mode == "concat") {
-			concat().concatenate(args);
-		}
+		//Get file type
+		int32_t type = XR.typeFile(idx_file);
+		if (type != FILE_BINARY) vrb.error("[" + buffer + "] is not a XCF file");
+		XR.close();
 	}
-	return 0;
-}
+	vrb.bullet("#files = " + stb.str(filenames.size()));
+	if (filenames.size() == 0) vrb.error("No filenames in input file.");
 
+	nfiles = filenames.size();
+}

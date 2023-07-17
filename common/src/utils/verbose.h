@@ -66,6 +66,19 @@ public:
 		if (verbose_on_log) log << s << std::endl;
 	}
 
+	void print2(std::string s) {
+		if (verbose_on_screen)
+		{
+			std::cout << s;
+			std::cout.flush();
+		}
+		if (verbose_on_log)
+		{
+			log << s;
+			log.flush();
+		}
+	}
+
 	void ctitle(std::string s) {
 		if (verbose_on_screen) std::cout << std::endl << "\x1B[32m" << s <<  "\033[0m" << std::endl;
 		if (verbose_on_log) log << std::endl << s << std::endl;

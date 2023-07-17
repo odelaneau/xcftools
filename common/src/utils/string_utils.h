@@ -1,6 +1,8 @@
 /*******************************************************************************
- * Copyright (C) 2022-2023 Olivier Delaneau
  * Copyright (C) 2022-2023 Simone Rubinacci
+ * Copyright (C) 2022-2023 Olivier Delaneau
+ *
+ * MIT Licence
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,8 +31,6 @@
 #include <string>
 #include <vector>
 #include <regex>
-#include <algorithm>
-#include <iostream>
 
 class string_utils {
 public:
@@ -76,7 +76,7 @@ public:
 		std::istringstream in(str);
 		if (!(in >> n)) return false;
 		return true;
-    }
+    	}
 
 	template < class T >
 	std::string str(T n, int prec = -1) {
@@ -94,7 +94,30 @@ public:
 		return ss.str();
 	}
 
-	std::string findExtension ( const std::string & filename ) {
+	std::string extract_file_name(const std::string& fullPath)
+	{
+	  const size_t lastSlashIndex = fullPath.find_last_of("/\\");
+	  return fullPath.substr(lastSlashIndex + 1);
+	}
+
+	std::string remove_ext(const std::string& fileName)
+	{
+	  const size_t lastSlashIndex = fileName.find_last_of(".");
+	  return fileName.substr(0,lastSlashIndex);
+	}
+
+	std::string base_name(std::string const & path)
+	{
+	  return path.substr(path.find_last_of("/\\") + 1);
+	}
+
+	std::string remove_extension(std::string const & filename)
+	{
+	  typename std::string::size_type const p(filename.find_last_of('.'));
+	  return p > 0 && p != std::string::npos ? filename.substr(0, p) : "";
+	}
+
+	std::string get_extension ( const std::string & filename ) {
 	   auto position = filename.find_last_of ( '.' ) ;
 	   if ( position == std::string::npos )
 	      return "" ;
@@ -105,30 +128,6 @@ public:
 	      else
 	         return extension ;
 	   }
-	}
-
-	std::string get_name_from_vcf(std::string filename)
-	{
-		std::string ext = findExtension(filename);
-		if (ext == "vcf" || "bcf")
-		{
-		    size_t lastdot = filename.find_last_of(".");
-		    if (lastdot == std::string::npos) return filename;
-		    return filename.substr(0, lastdot);
-		}
-		else if (ext=="gz") //check for vcf.gz
-		{
-		    size_t lastdot = filename.find_last_of(".");
-		    if (lastdot == std::string::npos) return filename;
-		    std::string filename2 =  filename.substr(0, lastdot);
-		    if (findExtension(filename2) == "vcf")
-		    {
-		    	lastdot = filename2.find_last_of(".");
-		    	if (lastdot == std::string::npos) return filename2;
-		    	return filename.substr(0, lastdot);
-		    }
-		}
-		return filename;
 	}
 
 };

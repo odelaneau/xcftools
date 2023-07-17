@@ -1,5 +1,6 @@
 /*******************************************************************************
  * Copyright (C) 2022-2023 Olivier Delaneau
+ * Copyright (C) 2013-2023 Genome Research Ltd.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,45 +21,11 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#define _DECLARE_TOOLBOX_HERE
-#include <viewer/viewer_header.h>
 #include <concat/concat_header.h>
 
-#include "../versions/versions.h"
+void concat::write_files_and_finalise() {
+	vrb.title("Finalization:");
 
-using namespace std;
-
-int main(int argc, char ** argv) {
-	vector < string > args;
-
-	string mode = (argc>1)?string(argv[1]):"";
-
-	if (argc == 1 || (mode != "view" && mode != "concat")) {
-
-		vrb.title("[XCFtools] Manage XCF files");
-		vrb.bullet("Authors       : Olivier DELANEAU, University of Lausanne");
-		vrb.bullet("Contact       : olivier.delaneau@gmail.com");
-		vrb.bullet("Version       : 5." + string(XCFTLS_VERSION) + " / commit = " + string(__COMMIT_ID__) + " / release = " + string (__COMMIT_DATE__));
-		vrb.bullet("Run date      : " + tac.date());
-
-		//List possible modes
-		vrb.title("Supported modes:");
-		vrb.bullet("[view]\t| Converts between XCF and BCF files");
-		vrb.bullet("[concat]\t| Concat multiple XCF files together");
-
-	} else {
-		//Get args
-		for (int a = 2 ; a < argc ; a ++) args.push_back(string(argv[a]));
-
-		//
-		string mode = string(argv[1]);
-
-		if (mode == "view") {
-			viewer().view(args);
-		} else if (mode == "concat") {
-			concat().concatenate(args);
-		}
-	}
-	return 0;
+	//step0: Measure overall running time
+	vrb.bullet("Total running time = " + stb.str(tac.abs_time()) + " seconds");
 }
-

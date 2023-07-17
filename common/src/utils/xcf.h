@@ -187,6 +187,17 @@ public:
 		nAC = nAN = nSK = 0;
 	}
 
+	//CONSTRUCTOR
+	xcf_reader(uint32_t nthreads) : pos(0), multi(false) {
+		sync_number = 0;
+		sync_reader = bcf_sr_init();
+		sync_reader->collapse = COLLAPSE_NONE;
+		sync_reader->require_index = 1;
+		if (nthreads > 1) bcf_sr_set_threads(sync_reader, nthreads);
+		vAC = vAN = vSK = NULL;
+		nAC = nAN = nSK = 0;
+	}
+
 	//DESTRUCTOR
 	~xcf_reader() {
 		//bcf_sr_destroy(sync_reader);
@@ -534,7 +545,7 @@ public:
 	uint32_t bin_size;							//Amount of Binary records in bytes		//Integer 4 in INFO/SEEK field
 
 	//CONSTRUCTOR
-	xcf_writer(std::string _hts_fname, bool _hts_genotypes, uint32_t _nthreads) {
+	xcf_writer(std::string _hts_fname, bool _hts_genotypes, uint32_t _nthreads) : hts_hdr(nullptr) , ind_number(0) {
 		std::string oformat;
 		hts_fname = _hts_fname;
 
@@ -558,6 +569,7 @@ public:
 		nsk = rsk = 0;
 
 		hts_fd = hts_open(hts_fname.c_str(), oformat.c_str());
+	    if (!hts_fd)  helper_tools::error("Could not open " + hts_fname);
 		if (nthreads > 1) hts_set_threads(hts_fd, nthreads);
 
 		if (!hts_genotypes) {
@@ -573,8 +585,17 @@ public:
 		//close();
 	}
 
+	void writeHeader(bcf_hdr_t * hdr) //copy header
+	{
+		hts_hdr = bcf_hdr_dup(hdr);
+		bcf_hdr_add_sample(hts_hdr, NULL);
+		if (bcf_hdr_write(hts_fd, hts_hdr) < 0) helper_tools::error("Failing to write BCF/header");
+		bcf_clear1(hts_record);
+	}
+
 	//Write sample IDs
-	void writeHeader(std::vector < std::string > & samples, std::string contig, std::string source) {
+	void writeHeader(std::vector < std::string > & samples, std::string contig, std::string source)
+	{
 		//
 		hts_hdr = bcf_hdr_init("w");
 		bcf_hdr_append(hts_hdr, std::string("##fileDate="+helper_tools::date()).c_str());
@@ -598,7 +619,7 @@ public:
 			for (uint32_t i = 0 ; i < samples.size() ; i++) fd << samples[i] << "\tNA\tNA" << std::endl;
 			fd.close();
 		}
-		if (bcf_hdr_write(hts_fd, hts_hdr) < 0) helper_tools::error("Failing to write VCF/header");
+		if (bcf_hdr_write(hts_fd, hts_hdr) < 0) helper_tools::error("Failing to write BCF/header");
 		bcf_clear1(hts_record);
 	}
 
@@ -646,6 +667,16 @@ public:
 		bcf_update_info_int32(hts_hdr, hts_record, "AN", &AN, 1);
 	}
 
+	void writeSeekField(uint32_t type, uint64_t seek, uint32_t nbytes)
+	{
+		vsk[0] = type;
+		vsk[1] = seek / MOD30BITS;		//Split addr in 2 30bits integer (max number of sparse genotypes ~1.152922e+18)
+		vsk[2] = seek % MOD30BITS;		//Split addr in 2 30bits integer (max number of sparse genotypes ~1.152922e+18)
+		vsk[3] = nbytes;
+		bcf_update_info_int32(hts_hdr, hts_record, "SEEK", vsk, 4);
+		if (bcf_write1(hts_fd, hts_hdr, hts_record) < 0) helper_tools::error("Failing to write VCF/record for rare variants");
+		bcf_clear1(hts_record);
+	}
 	//Write genotypes
 	void writeRecord(uint32_t type, char * buffer, uint32_t nbytes) {
 		if (hts_genotypes) {
