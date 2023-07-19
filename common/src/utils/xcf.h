@@ -118,6 +118,10 @@ namespace helper_tools
 		exit(EXIT_FAILURE);
 	}
 
+	inline void warning(std::string s) {
+		std::cout << std::endl << "\x1B[33m" << "WARNING: " <<  "\033[0m" << s << std::endl;
+	}
+
 	inline std::string date() {
 		auto now = std::chrono::system_clock::now();
 		auto in_time_t = std::chrono::system_clock::to_time_t(now);
@@ -555,9 +559,14 @@ public:
 			oformat = "wb";			//Compressed BCF for file
 		} else if (hts_fname.size() > 5 && hts_fname.substr(hts_fname.size()-5) == "vcf.gz") {
 			oformat = "wz";			//Compressed VCF for file
-		} else if (hts_fname.size() > 3 && hts_fname.substr(hts_fname.size()-5) == "vcf") {
+		} else if (hts_fname.size() > 3 && hts_fname.substr(hts_fname.size()-3) == "vcf") {
 			oformat = "wv";			//Uncompressed VCF for file
-		} else helper_tools::error("Filename extension of [" + hts_fname + "] not recognized");
+		} else
+		{
+			helper_tools::warning("Filename extension of [" + hts_fname + "] not recognized. Adding .bcf extension.");
+			hts_fname += ".bcf";
+			oformat = "wb";
+		}
 
 		hts_genotypes = _hts_genotypes;
 		nthreads = _nthreads;
