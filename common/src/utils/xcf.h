@@ -603,6 +603,42 @@ public:
 	}
 
 	//Write sample IDs
+	void writeHeader(bcf_hdr_t * hdr, std::vector < std::string > & samples, std::string source)
+	{
+		//
+		hts_hdr = bcf_hdr_init("w");
+		bcf_hdr_append(hts_hdr, std::string("##fileDate="+helper_tools::date()).c_str());
+		bcf_hdr_append(hts_hdr, std::string("##source=" + source).c_str());
+	    bcf_idpair_t *ctg = hdr->id[BCF_DT_CTG];
+	    for (int idx_ctg = 0; idx_ctg < hdr->n[BCF_DT_CTG]; ++idx_ctg)
+	    {
+	    	std::string length = "";
+	    	if (ctg[idx_ctg].val->info[0] > 0) length = ",length=" + std::to_string(ctg[idx_ctg].val->info[0]);
+	    	bcf_hdr_append(hts_hdr, std::string("##contig=<ID="+ std::string(ctg[idx_ctg].key) + length + ">").c_str());
+	    }
+		bcf_hdr_append(hts_hdr, "##INFO=<ID=AC,Number=A,Type=Integer,Description=\"ALT allele count\">");
+		bcf_hdr_append(hts_hdr, "##INFO=<ID=AN,Number=1,Type=Integer,Description=\"Number of alleles\">");
+		if (hts_genotypes) bcf_hdr_append(hts_hdr, "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Phased genotypes\">");
+		else bcf_hdr_append(hts_hdr, "##INFO=<ID=SEEK,Number=4,Type=Integer,Description=\"SEEK binary file information\">");
+
+		//Write sample IDs
+		if (hts_genotypes) {
+			//Samples are in BCF header
+			for (uint32_t i = 0 ; i < samples.size() ; i++) bcf_hdr_add_sample(hts_hdr, samples[i].c_str());
+			bcf_hdr_add_sample(hts_hdr, NULL);      // to update internal structures
+		} else {
+			//Samples are in PED file
+			std::string ffname = helper_tools::get_name_from_vcf(hts_fname) + ".fam";
+			std::ofstream fd (ffname);
+			if (!fd.is_open()) helper_tools::error("Cannot open [" + ffname + "] for writing");
+			for (uint32_t i = 0 ; i < samples.size() ; i++) fd << samples[i] << "\tNA\tNA" << std::endl;
+			fd.close();
+		}
+		if (bcf_hdr_write(hts_fd, hts_hdr) < 0) helper_tools::error("Failing to write BCF/header");
+		bcf_clear1(hts_record);
+	}
+
+	//Write sample IDs
 	void writeHeader(std::vector < std::string > & samples, std::string contig, std::string source)
 	{
 		//
