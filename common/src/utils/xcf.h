@@ -298,6 +298,32 @@ public:
 		return (sync_number-1);
 	}
 
+	//ADD A NEW FILE IN THE SYNCHRONIZED READER
+	int32_t removeFile(uint32_t file) {
+		//update the sync reader
+		bcf_sr_remove_reader(sync_reader, file);
+
+		//Deallocate memory
+		sync_lines.erase(sync_lines.begin() + file);
+		sync_types.erase(sync_types.begin() + file);
+		sync_flags.erase(sync_flags.begin() + file);
+		bin_fds.erase(bin_fds.begin() + file);
+		bin_type.erase(bin_type.begin() + file);
+		bin_seek.erase(bin_seek.begin() + file);
+		bin_size.erase(bin_size.begin() + file);
+		bin_curr.erase(bin_curr.begin() + file);
+		AC.erase(AC.begin() + file);
+		AN.erase(AN.begin() + file);
+		ploidy.erase(ploidy.begin() + file);
+		ind_names.erase(ind_names.begin() + file);
+		ind_fathers.erase(ind_fathers.begin() + file);
+		ind_mothers.erase(ind_mothers.begin() + file);
+		ind_number.erase(ind_number.begin()+file);
+
+		//Decrement number of readers
+		sync_number--;
+		return (sync_number);
+	}
 
 
 
@@ -327,6 +353,7 @@ public:
 	float getAF() { return std::accumulate(AC.begin(), AC.end(), 0)*1.0f/std::accumulate(AN.begin(), AN.end(), 0); }
 
 	int32_t getPloidy(uint32_t file) { return ploidy[file]; }
+	uint32_t getChrId(uint32_t file) { return bcf_hdr_name2id(sync_reader->readers[file].header, bcf_seqname(sync_reader->readers[file].header,sync_lines[file])); }
 
 
 
@@ -409,6 +436,10 @@ public:
 	//CHECK IF FILE HAS A RECORD THERE
 	int32_t hasRecord(uint32_t file) {
 		return (sync_flags[file]);
+	}
+
+	int32_t regionDone(uint32_t file) {
+		return (bcf_sr_region_done(sync_reader,file));
 	}
 
 	//CHECK THE TYPE OF FILE
@@ -505,6 +536,10 @@ public:
 			//Return amount of data in bytes read in file
 			return bin_size[file];
 		}
+	}
+
+	void seek(const char * seek_chr, int seek_pos) {
+		bcf_sr_seek(sync_reader, seek_chr, seek_pos);
 	}
 
 	void close() {

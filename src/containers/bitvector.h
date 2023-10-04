@@ -1,5 +1,8 @@
 /*******************************************************************************
- * Copyright (C) 2022-2023 Olivier Delaneau
+ * Copyright (C) 2023 Simone Rubinacci
+ * Copyright (C) 2023 Olivier Delaneau
+ *
+ * MIT Licence
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -36,6 +39,7 @@ public:
 
 	void allocate(uint32_t size);
 	void set(uint32_t idx, bool bit);
+	void setneg(uint32_t idx);
 	void set(bool bit);
 	bool get(uint32_t idx);
 };
@@ -47,6 +51,17 @@ void bitvector::set(uint32_t idx, bool value) {
 	char mask = ~(1 << (7 - idx_bit));
 	this->bytes[idx_byt] &= mask;
 	this->bytes[idx_byt] |= (value << (7 - idx_bit));
+}
+
+inline
+void bitvector::setneg(uint32_t idx) {
+	uint32_t idx_byt = idx / 8;
+	uint32_t idx_bit = idx % 8;
+	//char mask = ~(1 << (7 - idx_bit));
+	//this->bytes[idx_byt] &= mask;
+	//this->bytes[idx_byt] |= (get(idx) << (7 - idx_bit));
+    char mask = 1 << (7 - idx_bit);
+    this->bytes[idx_byt] ^= mask;
 }
 
 inline

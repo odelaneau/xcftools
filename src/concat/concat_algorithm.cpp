@@ -1,6 +1,7 @@
 /*******************************************************************************
- * Copyright (C) 2022-2023 Simone Rubinacci
- * Copyright (C) 2022-2023 Olivier Delaneau
+ * Copyright (C) 2023 Simone Rubinacci
+ * Copyright (C) 2023 Olivier Delaneau
+ * Copyright (C) 2013-2023 Genome Research Ltd.
  *
  * MIT Licence
  *
@@ -48,9 +49,9 @@ void concat::run() {
 	{
 		concat_naive();
 	}
-	else
+	else if (options.count("ligate"))
 	{
-
+		concat_ligate();
 	}
 }
 
@@ -69,7 +70,7 @@ void concat::concat_naive()
     {
     	tac.clock();
     	vrb.print2("  * Concatenating " + filenames[i]);
-    	xcf_reader XR(1);
+    	xcf_reader XR(nthreads);
     	const int32_t idx_file = XR.addFile(filenames[i]);
     	const int32_t type = XR.typeFile(idx_file);
     	if (type != FILE_BINARY) vrb.error("[" + filenames[i] + "] is not a XCF file");
@@ -97,6 +98,8 @@ void concat::concat_naive()
 // This is a C++ friendly modification of vcfconcat.c from bcftools.
 // Copyright (C) 2013-2023 Genome Research Ltd.
 // Author: Petr Danecek <pd3@sanger.ac.uk>
+// Copyright (C) 2023 Simone Rubinacci
+// Copyright (C) 2023 Olivier Delaneau
 void concat::concat_naive_check_headers(xcf_writer& XW, const std::string& fname)
 {
 	assert(nfiles>0 && filenames.size()>0);
@@ -154,6 +157,9 @@ void concat::concat_naive_check_headers(xcf_writer& XW, const std::string& fname
 // This is a C++ friendly modification of vcfconcat.c from bcftools.
 // Copyright (C) 2013-2023 Genome Research Ltd.
 // Author: Petr Danecek <pd3@sanger.ac.uk>
+// Copyright (C) 2023 Simone Rubinacci
+// Copyright (C) 2023 Olivier Delaneau
+
 void concat::check_hrecs(const bcf_hdr_t *hdr0, const bcf_hdr_t *hdr, const char *fname0, const char *fname)
 {
     int j;
@@ -185,9 +191,13 @@ void concat::check_hrecs(const bcf_hdr_t *hdr0, const bcf_hdr_t *hdr, const char
 // This is a C++ friendly modification of vcfconcat.c from bcftools.
 // Copyright (C) 2013-2023 Genome Research Ltd.
 // Author: Petr Danecek <pd3@sanger.ac.uk>
-void concat::ligate()
+// Copyright (C) 2023 Simone Rubinacci
+// Copyright (C) 2023 Olivier Delaneau
+
+void concat::concat_ligate()
 {
 	tac.clock();
+
 	const int nthreads = options["thread"].as < int > ();
 	if (nthreads < 1) vrb.error("Number of threads should be a positive integer.");
 	vrb.title("Ligating chunks");
@@ -195,45 +205,56 @@ void concat::ligate()
 	xcf_writer XW(fname, false, nthreads);
 	uint64_t offset_seek = 0;
 
-	bcf_srs_t * sr =  bcf_sr_init();
-	sr->require_index = 1;
-	int n_threads = options["thread"].as < int > ();
-	if (n_threads > 1) if (bcf_sr_set_threads(sr, n_threads) < 0) vrb.error("Failed to create threads");
-
+	xcf_reader XR(nthreads);
 	bcf_hdr_t * out_hdr = NULL;
-	bcf1_t *line = bcf_init();
+	uint32_t out_ind_number = 0;
+	std::vector < std::string > out_ind_names;
+	std::vector < std::string > out_ind_fathers;
+	std::vector < std::string > out_ind_mothers;
 	std::vector<int> start_pos(nfiles);
 
 	for (int f = 0, prev_chrid = -1 ; f < nfiles ; f ++)
 	{
-		htsFile *fp = hts_open(filenames[f].c_str(), "r"); if ( !fp ) vrb.error("Failed to open: " + filenames[f] + ".");
-		bcf_hdr_t *hdr = bcf_hdr_read(fp); if ( !hdr ) vrb.error("Failed to parse header: " + filenames[f] +".");
-		out_hdr = bcf_hdr_merge(out_hdr,hdr);
-        if ( bcf_hdr_nsamples(hdr) != bcf_hdr_nsamples(out_hdr) ) vrb.error("Different number of samples in " + filenames[f] + ".");
-        for (int j=0; j<bcf_hdr_nsamples(hdr); j++)
-        	if ( std::string(out_hdr->samples[j]) != std::string(hdr->samples[j]) )  vrb.error("Different sample names in " + filenames[f] + ".");
-
-        int ret = bcf_read(fp, hdr, line);
-		if ( ret!=0 ) vrb.error("Empty file detected: " + filenames[f] +".");
-        else
-        {
-            int chrid = bcf_hdr_id2int(out_hdr,BCF_DT_CTG,bcf_seqname(hdr,line));
-            start_pos[f] = chrid==prev_chrid ? line->pos : -1;
+		xcf_reader XR_tmp(nthreads);
+		XR_tmp.addFile(filenames[f]);
+		out_hdr = bcf_hdr_merge(out_hdr,XR_tmp.sync_reader->readers[0].header);
+		if ( bcf_hdr_nsamples(XR_tmp.sync_reader->readers[0].header) != bcf_hdr_nsamples(out_hdr) )
+			vrb.error("Different number of samples in BCF file: " + filenames[f] + ". This should be zero for XCF files.");
+		if (f == 0)
+		{
+			out_ind_number=XR_tmp.ind_number[0];
+			out_ind_names = XR_tmp.ind_names[0];
+			out_ind_fathers = XR_tmp.ind_fathers[0];
+			out_ind_mothers = XR_tmp.ind_mothers[0];
+		}
+		if (out_ind_number!=XR_tmp.ind_number[0]) vrb.error("Different number of samples in " + filenames[f] + ".");
+		for (int j=0; j<out_ind_number; j++)
+		{
+			if (out_ind_names[j] != XR_tmp.ind_names[0][j] )  vrb.error("Different sample names in " + filenames[f] + ".");
+			if (out_ind_fathers[j] != XR_tmp.ind_fathers[0][j] )  vrb.error("Different paternal relations in " + filenames[f] + ".");
+			if (out_ind_mothers[j] != XR_tmp.ind_mothers[0][j] )  vrb.error("Different maternal relations in " + filenames[f] + ".");
+		}
+		int ret = XR_tmp.nextRecord();
+		if (ret==0) vrb.error("Empty file detected: " + filenames[f] +".");
+		else
+		{
+            int chrid = XR_tmp.getChrId((unsigned int)0);
+            start_pos[f] = chrid==prev_chrid ? XR_tmp.pos-1 : -1;
             prev_chrid = chrid;
-        }
-        bcf_hdr_destroy(hdr);
-        if ( hts_close(fp)!=0 ) vrb.error("Close failed: " + filenames[f] + ".");
+		}
+		XR_tmp.close();
 	}
     for (int i=1; i<nfiles; i++) if ( start_pos[i-1]!=-1 && start_pos[i]!=-1 && start_pos[i]<start_pos[i-1] ) vrb.error("The files not in ascending order");
     int i = 0, nrm = 0;
-	nsamples = bcf_hdr_nsamples(out_hdr);
+	nsamples = out_ind_number;
 	nswap = {0,0};
 	swap_phase = {std::vector<bool>(nsamples, false), std::vector<bool>(nsamples, false)};
 	nmatch = std::vector < int > (nsamples, 0);
 	nmism = std::vector < int > (nsamples, 0);
-
-	GTa = GTb = NULL;
-	mGTa = 0, mGTb=0;
+	//BYTE BUFFER ALLOCATION
+	haps_sparsevector.reserve(2*nsamples/32);//I'm overallocating here, but it's just a single variant
+	//BIT BUFFER ALLOCATION
+	haps_bitvector.allocate(2 * nsamples);
 
 	XW.writeHeader(out_hdr);
 	if (!std::filesystem::exists(stb.remove_extension(filenames[i]) + ".fam")) vrb.error("File does not exists: " + stb.remove_extension(filenames[i]) + "fam");
@@ -245,7 +266,6 @@ void concat::ligate()
 
 	int n_variants = 0;
 	int n_variants_at_start_cnk = 0;
-	line = bcf_init();
 	int chunk_counter=0;
 	int n_sites_buff = 0;
 
@@ -259,227 +279,314 @@ void concat::ligate()
 	vrb.print("");
 	tac.clock();
 
+	uint32_t n_lines_comm=0;
+	uint32_t n_lines_rare=0;
+	uint32_t n_lines_comm_tot=0;
+	uint32_t n_lines_rare_tot=0;
+
     while ( ifname < nfiles )
     {
         int new_file = 0;
-        while ( sr->nreaders < 2 && ifname < nfiles )
+        while ( XR.sync_number < 2 && ifname < nfiles )
         {
-            if ( !bcf_sr_add_reader (sr, filenames[ifname].c_str())) vrb.error("Failed to open " + filenames[ifname] + ".");
-            new_file = 1;
+            //if ( !bcf_sr_add_reader (sr, filenames[ifname].c_str())) vrb.error("Failed to open " + filenames[ifname] + ".");
+            if (XR.addFile(filenames[ifname])) vrb.error("Failed to open " + filenames[ifname] + ".");
+        	new_file = 1;
             ifname++;
             if ( start_pos[ifname-1]==-1 ) break;   // new chromosome, start with only one file open
             if ( ifname < nfiles && start_pos[ifname]==-1 ) break; // next file starts on a different chromosome
         }
-
         // is there a line from the previous run? Seek the newly opened reader to that position
         int seek_pos = -1;
         int seek_chr = -1;
-        if ( bcf_sr_has_line(sr,0) )
+        if ( XR.hasRecord(0) )
         {
-            bcf1_t *line0 = bcf_sr_get_line(sr,0);
-            bcf_sr_seek(sr, bcf_seqname(sr->readers[0].header,line0), line0->pos);
-            seek_pos = line0->pos;
-            seek_chr = bcf_hdr_name2id(out_hdr, bcf_seqname(sr->readers[0].header,line0));
+        	XR.seek(XR.chr.c_str(), XR.pos-1);
+            seek_pos = XR.pos-1;
+            seek_chr = XR.getChrId(0);
         }
-        else if ( new_file ) bcf_sr_seek(sr,NULL,0);  // set to start
+        else if ( new_file ) XR.seek(NULL,0);  // set to start
 
-        int nret;
-        while ( (nret = bcf_sr_next_line(sr)) )
+        int32_t nret;
+        while ( (nret = XR.nextRecord()) )
         {
-            if ( !bcf_sr_has_line(sr,0) ) if ( bcf_sr_region_done(sr,0) )  bcf_sr_remove_reader(sr, 0);
+        	if ( !XR.hasRecord(0)) if ( XR.regionDone(0)) XR.removeFile(0);
 
             // Get a line to learn about current position
-            for (i=0; i<sr->nreaders; i++) if ( bcf_sr_has_line(sr,i) ) break;
-            bcf1_t *line = bcf_sr_get_line(sr,i);
-
+            for (i=0; i<XR.sync_number; i++) if ( XR.hasRecord(i)) break;
             // This can happen after bcf_sr_seek: indel may start before the coordinate which we seek to.
-            if ( seek_chr>=0 && seek_pos>line->pos && seek_chr==bcf_hdr_name2id(out_hdr, bcf_seqname(sr->readers[i].header,line)) ) continue;
+            if ( seek_chr>=0 && seek_pos>XR.pos-1 && seek_chr==XR.getChrId((unsigned int)i) ) continue;
             seek_pos = seek_chr = -1;
 
             //  Check if the position overlaps with the next, yet unopened, reader
             int must_seek = 0;
-            while ( ifname < nfiles && start_pos[ifname]!=-1 && line->pos >= start_pos[ifname] )
+            while ( ifname < nfiles && start_pos[ifname]!=-1 && XR.pos >= start_pos[ifname] )
             {
                 must_seek = 1;
-                if ( !bcf_sr_add_reader(sr, filenames[ifname].c_str())) vrb.error("Failed to open " + filenames[ifname] + ".");
-                if  (sr->nreaders>2) vrb.error("Three files overlapping at position: " + std::to_string(line->pos+1));
+                XR.addFile(filenames[ifname]);
+                if (XR.sync_number>2) vrb.error("Three files overlapping at position: " + std::to_string(XR.pos));
                 ifname++;
             }
+
             if ( must_seek )
             {
-                bcf_sr_seek(sr, bcf_seqname(sr->readers[i].header,line), line->pos);
-                seek_pos = line->pos;
-                seek_chr = bcf_hdr_name2id(out_hdr, bcf_seqname(sr->readers[i].header,line));
+            	XR.seek(XR.chr.c_str(), XR.pos-1);
+                seek_pos = XR.pos-1;
+                seek_chr = XR.getChrId((unsigned int)i);
                 continue;
             }
 
-            if ( sr->nreaders>1 && ((!bcf_sr_has_line(sr,0) && !bcf_sr_region_done(sr,0)) || (!bcf_sr_has_line(sr,1) && !bcf_sr_region_done(sr,1))) )
+            if (nret > 1 && ((!XR.hasRecord(0) && !XR.regionDone(0)) || (!XR.hasRecord(1) && !XR.regionDone(1))) )
             {
-            	const bool uphalf = !bcf_sr_has_line(sr,0);
-            	line = bcf_sr_get_line(sr,uphalf);
-            	//TODO//write_record(out_fp, out_hdr, sr->readers[0].header, line,uphalf);
-                prev_pos[uphalf]=line->pos;
-                prev_readers_size = sr->nreaders;
+        		XW.writeInfo(XR.chr, XR.pos, XR.ref, XR.alt, XR.rsid, XR.getAC(), XR.getAN());
+              	const bool uphalf = !XR.hasRecord(0);
+        		const int32_t type = XR.typeRecord(uphalf);
+        		if (type == RECORD_BINARY_HAPLOTYPE)
+        		{
+        			phase_update_common(haps_bitvector, uphalf, XR);
+        			XW.writeRecord(RECORD_BINARY_HAPLOTYPE, haps_bitvector.bytes, haps_bitvector.n_bytes);
+        			n_lines_comm++;
+        		}
+        		else if (type == RECORD_SPARSE_HAPLOTYPE)
+        		{
+        			phase_update_rare(haps_sparsevector, uphalf, XR);
+        			XW.writeRecord(RECORD_SPARSE_HAPLOTYPE, reinterpret_cast<char*>(haps_sparsevector.data()), haps_sparsevector.size() * sizeof(int32_t));
+        			n_lines_rare ++;
+        		}
+        		else vrb.error("Unsupported record format [" + stb.str(type) + "] in position [" + stb.str(XR.pos) + "]");
+
+        		prev_pos[uphalf]=XR.pos;
+				prev_readers_size = XR.sync_number;
 				n_variants++;
-            	continue;
+				continue;
             }
 
-            if (sr->nreaders<2)
+            if (nret < 2)
             {
             	if (prev_readers_size == 0)
             	{
             		n_variants_at_start_cnk = n_variants;
-            		prev_chr = std::string(bcf_seqname(sr->readers[i].header,line));
-            		first_pos = (int)bcf_sr_get_line(sr,i)->pos + 1;
+            		prev_chr = XR.chr;
+            		first_pos = (int)XR.pos;
             		vrb.wait("Cnk " + stb.str(ifname-1) + " [" + prev_chr + ":" + stb.str(first_pos) + "-]");
             	}
             	else if (prev_readers_size == 2)
     			{
             		n_variants_at_start_cnk = n_variants;
-            		prev_chr = std::string(bcf_seqname(sr->readers[i].header,line));
-            		first_pos = (int)bcf_sr_get_line(sr,i)->pos + 1;
+            		prev_chr = XR.chr;
+            		first_pos = XR.pos;
     				vrb.wait("Cnk " + stb.str(ifname-1) + " [" + prev_chr + ":" + stb.str(first_pos) + "-]");
+    				n_lines_comm_tot+=n_lines_comm;
+					n_lines_rare_tot+=n_lines_rare;
+					n_lines_comm=0;
+					n_lines_rare=0;
             		//after a buffer we go back to one reader. Chunk 1 is now chunk 0.
     				n_sites_buff = 0;
             		nswap[0]=nswap[1];
             		swap_phase[0] = swap_phase[1];
     			}
-				line = bcf_sr_get_line(sr,i);
-				//TODO//write_record(out_fp, out_hdr, sr->readers[0].header, line,i);
-            	prev_pos[i]=line->pos;
+
+        		XW.writeInfo(XR.chr, XR.pos, XR.ref, XR.alt, XR.rsid, XR.getAC(), XR.getAN());
+        		const int32_t type = XR.typeRecord(i);
+        		if (type == RECORD_BINARY_HAPLOTYPE)
+        		{
+        			phase_update_common(haps_bitvector, i, XR);
+        			XW.writeRecord(RECORD_BINARY_HAPLOTYPE, haps_bitvector.bytes, haps_bitvector.n_bytes);
+        			n_lines_comm++;
+        		}
+        		else if (type == RECORD_SPARSE_HAPLOTYPE)
+        		{
+        			phase_update_rare(haps_sparsevector, i, XR);
+        			XW.writeRecord(RECORD_SPARSE_HAPLOTYPE, reinterpret_cast<char*>(haps_sparsevector.data()), haps_sparsevector.size() * sizeof(int32_t));
+        			n_lines_rare ++;
+        		}
+        		else vrb.error("Unsupported record format [" + stb.str(type) + "] in position [" + stb.str(XR.pos) + "]");
+            	prev_pos[i]=XR.pos;
             }
             else
             {
             	if (n_sites_buff==0)
             	{
-            		prev_chr = std::string(bcf_seqname(sr->readers[i].header,line));
-    				vrb.print("Cnk " + stb.str(ifname-2) + " [" + prev_chr + ":" + stb.str(first_pos) + "-" + stb.str(prev_pos[0] + 1) + "] [L=" + stb.str(n_variants-n_variants_at_start_cnk) + "]" );
-            		scan_overlap(ifname, bcf_seqname(sr->readers[i].header,line), line->pos);
+            		prev_chr = XR.chr;
+    				vrb.print("Cnk " + stb.str(ifname-2) + " [" + prev_chr + ":" + stb.str(first_pos) + "-" + stb.str(prev_pos[0] + 1) + "] [L=" + stb.str(n_variants-n_variants_at_start_cnk) + " | L_comm=" + stb.str(n_lines_comm) + " / L_rare=" + stb.str(n_lines_rare) + "]");
+            		n_lines_comm_tot+=n_lines_comm;
+            		n_lines_rare_tot+=n_lines_rare;
+            		n_lines_comm=0;
+            		n_lines_rare=0;
+    				scan_overlap(ifname, XR.chr.c_str(), XR.pos-1);
             	}
-
+        		XW.writeInfo(XR.chr, XR.pos, XR.ref, XR.alt, XR.rsid, XR.getAC(), XR.getAN());
 				const bool uphalf = n_sites_buff >= nsites_buff_d2.back();
-				line = bcf_sr_get_line(sr,uphalf);
-				//TODO//write_record(out_fp, out_hdr, sr->readers[uphalf].header, line, uphalf);
+        		const int32_t type = XR.typeRecord(uphalf);
+        		if (type == RECORD_BINARY_HAPLOTYPE)
+        		{
+        			phase_update_common(haps_bitvector, uphalf, XR);
+        			XW.writeRecord(RECORD_BINARY_HAPLOTYPE, haps_bitvector.bytes, haps_bitvector.n_bytes);
+        			n_lines_comm++;
+        		}
+        		else if (type == RECORD_SPARSE_HAPLOTYPE)
+        		{
+        			phase_update_rare(haps_sparsevector, uphalf, XR);
+        			XW.writeRecord(RECORD_SPARSE_HAPLOTYPE, reinterpret_cast<char*>(haps_sparsevector.data()), haps_sparsevector.size() * sizeof(int32_t));
+        			n_lines_rare ++;
+        		}
+        		else vrb.error("Unsupported record format [" + stb.str(type) + "] in position [" + stb.str(XR.pos) + "]");
 				++n_sites_buff;
-	            prev_pos[0]=prev_pos[1]=line->pos;
+	            prev_pos[0]=prev_pos[1]=XR.pos;
             }
-            prev_readers_size = sr->nreaders;
+            prev_readers_size = XR.sync_number;
     		n_variants++;
         }
-        if ( sr->nreaders ) while ( sr->nreaders ) bcf_sr_remove_reader(sr, 0);
+        if ( XR.sync_number ) while ( XR.sync_number ) XR.removeFile(0);
     }
-	vrb.print("Cnk " + stb.str(ifname-1) + " [" + prev_chr + ":" + stb.str(first_pos) + "-" + stb.str(prev_pos[0] + 1) + "] [L=" + stb.str(n_variants-n_variants_at_start_cnk) + "]" );
+	n_lines_comm_tot+=n_lines_comm;
+	n_lines_rare_tot+=n_lines_rare;
+	vrb.print("Cnk " + stb.str(ifname-1) + " [" + prev_chr + ":" + stb.str(first_pos) + "-" + stb.str(prev_pos[0] + 1) + "] [L=" + stb.str(n_variants-n_variants_at_start_cnk) + " | L_comm=" + stb.str(n_lines_comm) + " / L_rare=" + stb.str(n_lines_rare) + "]");
+	XR.close();
 	bcf_hdr_destroy(out_hdr);
-	bcf_sr_destroy(sr);
-	if (line) bcf_destroy(line);
-	free(GTa);
-    free(GTb);
-
 	if (n_variants == 0) vrb.error("No variants to be phased in files");
-	XW.bin_fds.close();
 	XW.close();
 
-	vrb.title("Writing completed [L=" + stb.str(n_variants) + "] (" + stb.str(tac.rel_time()*1.0/1000, 2) + "s)");
+	vrb.title("Writing completed [L=" + stb.str(n_variants) + "] | L_comm=" + stb.str(n_lines_comm_tot) + " / L_rare=" + stb.str(n_lines_rare_tot) + "] (" + stb.str(tac.rel_time()*1.0/1000, 2) + "s)");
 }
 
-void concat::phase_update(bcf_hdr_t *hdr, bcf1_t *line, const bool uphalf)
+void concat::phase_update_common(bitvector& h_bitvector, const bool uphalf, xcf_reader& XR)
 {
-	//TODO: next GT HERE: need to do sparse
-    int i, nGTs = bcf_get_genotypes(hdr, line, &GTa, &mGTa);
-    if ( nGTs <= 0 ) return;    // GT field is not present
-    for (i=0; i<bcf_hdr_nsamples(hdr); i++)
+	XR.readRecord(uphalf, reinterpret_cast< char* > (h_bitvector.bytes));
+    for (int i=0; i<nsamples; i++)
     {
+    	if (h_bitvector.get(i*2)==h_bitvector.get(i*2+1) ) continue;
 		if ( !swap_phase[uphalf][i] ) continue;
-		int *gt = &GTa[i*2];
-		if ( bcf_gt_is_missing(gt[0]) || gt[1]==bcf_int32_vector_end ) continue;
-        if (!bcf_gt_is_phased(gt[0]) || !bcf_gt_is_phased(gt[1])) continue;
-        const int gt0 = bcf_gt_phased(bcf_gt_allele(gt[1])==1);
-        const int gt1 = bcf_gt_phased(bcf_gt_allele(gt[0])==1);
-        gt[0] = gt0;
-        gt[1] = gt1;
+		h_bitvector.setneg(i*2);
+		h_bitvector.setneg(i*2+1);
     }
-    bcf_update_genotypes(hdr,line,GTa,nGTs);
 }
 
-void concat::update_distances()
+void concat::phase_update_rare(std::vector<int32_t>& h_sparsevector, const bool uphalf, xcf_reader& XR)
 {
-	//TODO: next GT HERE: needs to be sparse
+	h_sparsevector.resize(XR.bin_size[uphalf]/ sizeof(int32_t));
+	XR.readRecord(uphalf, reinterpret_cast< char* > (h_sparsevector.data()));
+    for (int i=0; i<h_sparsevector.size(); i++)
+    {
+		if ( swap_phase[uphalf][h_sparsevector[i]/2] )
+		{
+			h_sparsevector[i] % 2 == 0 ? h_sparsevector[i]++ : h_sparsevector[i]--;
+		}
+    }
+}
+
+void concat::update_distances_common(bitvector& a, bitvector& b)
+{
 	for (int i = 0 ; i < nsamples; i++)
 	{
-	    int *gta = &GTa[i*2];
-	    int *gtb = &GTb[i*2];
-	    if ( gta[1]==bcf_int32_vector_end || gtb[1]==bcf_int32_vector_end ) continue;
-	    if ( bcf_gt_is_missing(gta[0]) || bcf_gt_is_missing(gta[1]) || bcf_gt_is_missing(gtb[0]) || bcf_gt_is_missing(gtb[1]) ) continue;
-	    if ( !bcf_gt_is_phased(gta[1]) || !bcf_gt_is_phased(gtb[1]) ) continue;
-	    if ( bcf_gt_allele(gta[0])==bcf_gt_allele(gta[1]) || bcf_gt_allele(gtb[0])==bcf_gt_allele(gtb[1]) ) continue;
-	    if ( bcf_gt_allele(gta[0])==bcf_gt_allele(gtb[0]) && bcf_gt_allele(gta[1])==bcf_gt_allele(gtb[1]) )
+	    bool gta0 = a.get(i*2);
+	    bool gta1 = a.get(i*2+1);
+	    bool gtb0 = b.get(i*2);
+		bool gtb1 = b.get(i*2+1);
+
+	    if ( gta0==gta1 || gtb0==gtb1 )
+	    	continue;
+	    if ( gta0==gtb0 && gta1==gtb1 )
 	    {
 	        if ( swap_phase[0][i] ) nmism[i]++; else nmatch[i]++;
+	        continue;
 	    }
-	    if ( bcf_gt_allele(gta[0])==bcf_gt_allele(gtb[1]) && bcf_gt_allele(gta[1])==bcf_gt_allele(gtb[0]) )
+	    if ( gta0==gtb1 && gta1==gtb0 )
 	    {
 	        if ( swap_phase[0][i] ) nmatch[i]++; else nmism[i]++;
+	        continue;
 	    }
 	}
 }
 
-void concat::write_record(htsFile *fd, bcf_hdr_t * out_hdr, bcf_hdr_t * hdr_in, bcf1_t *line, const bool uphalf)
+void concat::update_distances_rare(std::vector<int32_t>& a, std::vector<int32_t>& b)
 {
-	//TODO: next GT HERE
+	assert(a.size() == b.size());
 
-	bcf_translate(out_hdr, hdr_in, line);
-	if ( nswap[uphalf] ) phase_update(hdr_in, line, uphalf);
-	//remove_info(out_hdr,line);
-	//remove_format(out_hdr,line);
-	if (bcf_write(fd, out_hdr, line) ) vrb.error("Failed to write the record output to file");
+	for (int i = 0 ; i < a.size(); i++)
+	{
+		int32_t gta1 = (i + 1 < a.size()) ? a[i + 1]/2 : -1; // Default value for odd-sized allelePresence
+		int32_t gtb1 = (i + 1 < a.size()) ? a[i + 1]/2 : -1; // Default value for odd-sized allelePresence
+
+		if (a[i]/2 == gta1 || b[i]/2== gtb1)
+		{
+			++i;
+			continue;
+		}
+
+		if (a[i]==b[i])
+		{
+			if ( swap_phase[0][i] ) nmism[i]++; else nmatch[i]++;
+		}
+		else
+		{
+			if ( swap_phase[0][i] ) nmatch[i]++; else nmism[i]++;
+		}
+	}
 }
 
 void concat::scan_overlap(const int ifname, const char * seek_chr, int seek_pos)
 {
-	bcf_srs_t * sr =  bcf_sr_init();
-	sr->require_index = 1;
-	sr->collapse = COLLAPSE_NONE;
-	//sr->max_unpack = BCF_UN_FMT;
+	const int nthreads = options["thread"].as < int > ();
+	if (nthreads < 1) vrb.error("Number of threads should be a positive integer.");
 
-	int n_threads = options["threads"].as < int > ();
-	if (n_threads > 1) bcf_sr_set_threads(sr, n_threads);
+	xcf_reader XR(nthreads);
+	if (XR.addFile(filenames[ifname-2])!=0) vrb.error("Problem opening/creating index file for [" + filenames[ifname-2] + "]");
+	if (XR.addFile(filenames[ifname-1])!=1) vrb.error("Problem opening/creating index file for [" + filenames[ifname-1] + "]");
 
-	if (!bcf_sr_add_reader (sr, filenames[ifname-2].c_str())) vrb.error("Problem opening/creating index file for [" + filenames[ifname-2] + "]");
-	if (!bcf_sr_add_reader (sr, filenames[ifname-1].c_str())) vrb.error("Problem opening/creating index file for [" + filenames[ifname-1] + "]");
-
-	int nset = 0;
 	int n_sites_buff = 0;
 	int n_sites_tot = 0;
 	int last_pos=seek_pos;
 
-	bcf1_t * line0 = NULL, * line1 = NULL;
-	bcf_sr_seek(sr, seek_chr, seek_pos);
-	while ((nset = bcf_sr_next_line (sr)))
+	XR.seek(seek_chr, seek_pos);
+	//BYTE BUFFER ALLOCATION
+	std::vector<int32_t> asparse_v;
+	std::vector<int32_t> bsparse_v;
+	asparse_v.reserve(2*nsamples/32);
+	bsparse_v.reserve(2*nsamples/32);
+	//BIT BUFFER ALLOCATION
+	bitvector abit_v, bbit_v; //delete!
+	abit_v.allocate(2 * nsamples);
+	bbit_v.allocate(2 * nsamples);
+
+	int32_t nret;
+	while ((nret = XR.nextRecord()))
 	{
-		if (nset==1)
+		if (nret==1)
 		{
-			if ( !bcf_sr_has_line(sr,0) && bcf_sr_region_done(sr,0)) break;  // no input from the first reader
+			if ( !XR.hasRecord(0) && XR.regionDone(0)) break;  // no input from the first reader
 			++n_sites_tot;
 			continue;
 		}
-		line0 =  bcf_sr_get_line(sr, 0);
-		if (line0->n_allele != 2) continue;
 
-		line1 =  bcf_sr_get_line(sr, 1);
+		const int32_t atype = XR.typeRecord(0);
+		const int32_t btype = XR.typeRecord(1);
+		if (atype != btype)
+			vrb.error("Different encoding of the same variant between different files. Ligation between different encodings is not supported.");
+		// ... in binary haplotype format
+		if (atype == RECORD_BINARY_HAPLOTYPE)
+		{
+			XR.readRecord(0, reinterpret_cast< char* > (abit_v.bytes));
+			XR.readRecord(1, reinterpret_cast< char* > (bbit_v.bytes));
+			update_distances_common(abit_v,bbit_v);
+		}
+		// ... in sparse haplotype format
+		else if (atype == RECORD_SPARSE_HAPLOTYPE)
+		{
+			asparse_v.resize(XR.bin_size[0]/ sizeof(int32_t));
+			XR.readRecord(0, reinterpret_cast< char* > (asparse_v.data()));
+			bsparse_v.resize(XR.bin_size[1]/ sizeof(int32_t));
+			XR.readRecord(1, reinterpret_cast< char* > (bsparse_v.data()));
+			update_distances_rare(asparse_v,bsparse_v);
+		}
+		// ... format is unsupported
+		else vrb.error("Unsupported record format [" + stb.str(atype) + "] in position [" + stb.str(XR.pos) + "]");
 
-		//TODO: next GT HERE
-		int nGTsa = bcf_get_genotypes(sr->readers[0].header, line0, &GTa, &mGTa);
-		int nGTsb = bcf_get_genotypes(sr->readers[1].header, line1, &GTb, &mGTb);
-		if ( nGTsa <= 0 || nGTsb <= 0 )
-			vrb.error("GT field is not present in overlap at position: " + std::to_string(line0->pos + 1));
-
-		update_distances();
-		last_pos = line0->pos;
+		last_pos = XR.pos;
 		++n_sites_buff;
 		++n_sites_tot;
 	}
-	bcf_sr_destroy(sr);
-
+	XR.close();
 	stats1D stats_all;
 	stats1D phaseq;
 
@@ -503,7 +610,6 @@ void concat::scan_overlap(const int ifname, const char * seek_chr, int seek_pos)
 		nmatch[i] = 0;
 		nmism[i]  = 0;
 	}
-
 	if (n_sites_buff <=0) vrb.error("Overlap is empty");
 	nsites_buff_d2.push_back(n_sites_buff/2);
 	vrb.print("Buf " + stb.str(nsites_buff_d2.size() -1) + " ["+std::string(seek_chr)+":"+stb.str(seek_pos+1)+"-"+stb.str(last_pos+1)+"] [L_isec=" + stb.str(n_sites_buff) + " / L_tot=" + stb.str(n_sites_tot) + "] [Avg #hets=" + stb.str(stats_all.mean()) + "] [Switch rate=" + stb.str(nswap[1]*1.0 / nsamples) + "] [Avg phaseQ=" + stb.str(phaseq.mean()) + "]");

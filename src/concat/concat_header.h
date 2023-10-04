@@ -1,5 +1,9 @@
 /*******************************************************************************
- * Copyright (C) 2022-2023 Olivier Delaneau
+ * Copyright (C) 2023 Simone Rubinacci
+ * Copyright (C) 2023 Olivier Delaneau
+ * Copyright (C) 2013-2023 Genome Research Ltd.
+ *
+ * MIT Licence
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,6 +29,7 @@
 
 #include <utils/otools.h>
 #include <utils/xcf.h>
+#include <containers/bitvector.h>
 
 class concat {
 public:
@@ -49,7 +54,8 @@ public:
 
 	std::vector < int > nsites_buff_d2;
 
-	int32_t *GTa, *GTb, mGTa, mGTb;
+	bitvector haps_bitvector;
+	std::vector<int32_t> haps_sparsevector;
 
 	//CONSTRUCTOR
 	concat();
@@ -67,15 +73,16 @@ public:
 	void read_files_and_initialise();
 	void run();
 	void concat_naive();
-	void ligate();
+	void concat_ligate();
 	void write_files_and_finalise();
 	//Helpers
 	void concat_naive_check_headers(xcf_writer& XW, const std::string& fname);
 	void check_hrecs(const bcf_hdr_t *hdr0, const bcf_hdr_t *hdr, const char *fname0, const char *fname);
 	void scan_overlap(const int ifname,const char* seek_chr, int seek_pos);
-	void update_distances();
-	void phase_update(bcf_hdr_t *hdr, bcf1_t *line, const bool uphalf);
-	void write_record(htsFile *, bcf_hdr_t * ,  bcf_hdr_t * ,bcf1_t *, const bool uphalf);
+	void phase_update_common(bitvector& abitvector, const bool uphalf, xcf_reader& XR);
+	void phase_update_rare(std::vector<int32_t>& asparse_v, const bool uphalf, xcf_reader& XR);
+	void update_distances_common(bitvector& abitvector, bitvector& bbitvector);
+	void update_distances_rare(std::vector<int32_t>& a, std::vector<int32_t>& b);
 };
 
 #endif

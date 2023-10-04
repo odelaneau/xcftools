@@ -1,5 +1,8 @@
 /*******************************************************************************
- * Copyright (C) 2022-2023 Olivier Delaneau
+ * Copyright (C) 2023 Simone Rubinacci
+ * Copyright (C) 2023 Olivier Delaneau
+ *
+ * MIT Licence
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -39,7 +42,8 @@ void concat::declare_options() {
 
 	bpo::options_description opt_par ("Parameters");
 	opt_par.add_options()
-			("naive", "Concatenate files without recompression, a header check compatibility is performed");
+			("naive", "Concatenate files without recompression, a header check compatibility is performed")
+			("ligate", "Ligate phased XCF files");
 
 	bpo::options_description opt_output ("Output files");
 	opt_output.add_options()
@@ -100,10 +104,14 @@ void concat::verbose_options() {
 	vrb.title("Parameters: ");
 	if (options.count("naive"))
 		vrb.bullet("Mode     : Concat (naive mode)");
+	else if (options.count("ligate"))
+	{
+		vrb.bullet("Mode     : Ligate");
+		//vrb.error("Only concat --naive is implemented at the moment. sorry :-/");
+	}
 	else
 	{
-		vrb.bullet("Mode     : Ligation / concat (non naive mode)");
-		vrb.error("Only concat --naive is implemented at the moment. sorry :-/");
+		vrb.error("Only concat --naive or --ligate are implemented at the moment. sorry :-/");
 	}
 	vrb.bullet("Seed     : " + stb.str(options["seed"].as < int > ()));
 	vrb.bullet("Threads  : " + stb.str(options["thread"].as < int > ()) + " threads");
