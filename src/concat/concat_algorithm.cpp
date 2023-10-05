@@ -58,7 +58,7 @@ void concat::run() {
 void concat::concat_naive()
 {
 	tac.clock();
-	const int nthreads = options["thread"].as < int > ();
+	const int nthreads = options["threads"].as < int > ();
 	if (nthreads < 1) vrb.error("Number of threads should be a positive integer.");
 	vrb.title("Concatenating files:");
 	std::string fname = options["output"].as < std::string > ();
@@ -198,7 +198,7 @@ void concat::concat_ligate()
 {
 	tac.clock();
 
-	const int nthreads = options["thread"].as < int > ();
+	const int nthreads = options["threads"].as < int > ();
 	if (nthreads < 1) vrb.error("Number of threads should be a positive integer.");
 	vrb.title("Ligating chunks");
 	std::string fname = options["output"].as < std::string > ();
@@ -527,7 +527,7 @@ void concat::update_distances_rare(std::vector<int32_t>& a, std::vector<int32_t>
 
 void concat::scan_overlap(const int ifname, const char * seek_chr, int seek_pos)
 {
-	const int nthreads = options["thread"].as < int > ();
+	const int nthreads = options["threads"].as < int > ();
 	if (nthreads < 1) vrb.error("Number of threads should be a positive integer.");
 
 	xcf_reader XR(nthreads);

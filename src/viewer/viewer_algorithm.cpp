@@ -33,7 +33,7 @@ void viewer::view() {
 	string format = options["format"].as < string > ();
 	string finput = options["input"].as < string > ();
 	string foutput = options["output"].as < string > ();
-	uint32_t nthreads = options["thread"].as < int > ();
+	uint32_t nthreads = options["threads"].as < int > ();
 	float maf = options["maf"].as < float > ();
 
 	//

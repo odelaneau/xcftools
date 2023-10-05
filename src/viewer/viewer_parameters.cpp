@@ -31,7 +31,7 @@ void viewer::declare_options() {
 	opt_base.add_options()
 			("help", "Produce help message")
 			("seed", bpo::value<int>()->default_value(15052011), "Seed of the random number generator")
-			("thread,T", bpo::value<int>()->default_value(1), "Number of thread used for VCF/BCF (de-)compression");
+			("threads,T", bpo::value<int>()->default_value(1), "Number of threads used for VCF/BCF (de-)compression");
 
 	bpo::options_description opt_input ("Input files");
 	opt_input.add_options()
@@ -81,7 +81,7 @@ void viewer::check_options() {
 	if (options.count("seed") && options["seed"].as < int > () < 0)
 		vrb.error("Random number generator needs a positive seed value");
 
-	if (options.count("thread") && options["thread"].as < int > () < 1)
+	if (options.count("threads") && options["threads"].as < int > () < 1)
 		vrb.error("You must use at least 1 thread");
 }
 
@@ -103,7 +103,7 @@ void viewer::verbose_files() {
 void viewer::verbose_options() {
 	vrb.title("Parameters:");
 	vrb.bullet("Seed    : " + stb.str(options["seed"].as < int > ()));
-	vrb.bullet("Threads : " + stb.str(options["thread"].as < int > ()) + " threads");
+	vrb.bullet("Threads : " + stb.str(options["threads"].as < int > ()) + " threads");
 
 	string format = options["format"].as < string > ();
 	if (format[0] == 's') vrb.bullet("MAF     : " + stb.str(options["maf"].as < float > ()));

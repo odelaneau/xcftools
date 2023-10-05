@@ -34,11 +34,11 @@ void concat::declare_options() {
 	opt_base.add_options()
 			("help", "Produce help message")
 			("seed", bpo::value<int>()->default_value(15052011), "Seed of the random number generator")
-			("thread,T", bpo::value<int>()->default_value(1), "Number of thread used for VCF/BCF (de-)compression");
+			("threads,T", bpo::value<int>()->default_value(1), "Number of threads used for VCF/BCF (de-)compression");
 
 	bpo::options_description opt_input ("Input files");
 	opt_input.add_options()
-			("input,I", bpo::value < std::string >(), "Text file containing all XCF files to ligate, one file per line");
+			("input,i", bpo::value < std::string >(), "Text file containing all XCF files to ligate, one file per line");
 
 	bpo::options_description opt_par ("Parameters");
 	opt_par.add_options()
@@ -47,8 +47,8 @@ void concat::declare_options() {
 
 	bpo::options_description opt_output ("Output files");
 	opt_output.add_options()
-			("output,O", bpo::value< std::string >(), "Output ligated file in XCF format")
-			("log,L", bpo::value< std::string >(), "Log file");
+			("output,o", bpo::value< std::string >(), "Output ligated file in XCF format")
+			("log", bpo::value< std::string >(), "Log file");
 
 	descriptions.add(opt_base).add(opt_input).add(opt_par).add(opt_output);
 }
@@ -84,7 +84,7 @@ void concat::check_options() {
 	if (options.count("seed") && options["seed"].as < int > () < 0)
 		vrb.error("Random number generator needs a positive seed value");
 
-	if (options.count("thread") && options["thread"].as < int > () < 1)
+	if (options.count("threads") && options["threads"].as < int > () < 1)
 		vrb.error("You must use at least 1 thread");
 }
 
@@ -113,7 +113,7 @@ void concat::verbose_options() {
 		vrb.error("Only concat --naive or --ligate are implemented at the moment. sorry :-/");
 	}
 	vrb.bullet("Seed     : " + stb.str(options["seed"].as < int > ()));
-	vrb.bullet("Threads  : " + stb.str(options["thread"].as < int > ()) + " threads");
+	vrb.bullet("Threads  : " + stb.str(options["threads"].as < int > ()) + " threads");
 
 
 }
