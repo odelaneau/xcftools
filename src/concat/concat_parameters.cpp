@@ -38,7 +38,7 @@ void concat::declare_options() {
 
 	bpo::options_description opt_input ("Input files");
 	opt_input.add_options()
-			("input", bpo::value < std::string >(), "Text file containing all XCF files to ligate, one file per line");
+			("input,I", bpo::value < std::string >(), "Text file containing all XCF files to ligate, one file per line");
 
 	bpo::options_description opt_par ("Parameters");
 	opt_par.add_options()
@@ -48,8 +48,7 @@ void concat::declare_options() {
 	bpo::options_description opt_output ("Output files");
 	opt_output.add_options()
 			("output,O", bpo::value< std::string >(), "Output ligated file in XCF format")
-			("no-index", "If specified, the ligated VCF/BCF is not indexed by GLIMPSE2 for random access to genomic regions")
-			("log", bpo::value< std::string >(), "Log file");
+			("log,L", bpo::value< std::string >(), "Log file");
 
 	descriptions.add(opt_base).add(opt_input).add(opt_par).add(opt_output);
 }
