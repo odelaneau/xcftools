@@ -36,9 +36,9 @@ int main(int argc, char ** argv) {
 	if (argc == 1 || (mode != "view" && mode != "concat")) {
 
 		vrb.title("[XCFtools] Manage XCF files");
-		vrb.bullet("Authors       : Olivier DELANEAU, University of Lausanne");
+		vrb.bullet("Authors       : Olivier DELANEAU and Simone RUBINACCI");
 		vrb.bullet("Contact       : olivier.delaneau@gmail.com");
-		vrb.bullet("Version       : 5." + string(XCFTLS_VERSION) + " / commit = " + string(__COMMIT_ID__) + " / release = " + string (__COMMIT_DATE__));
+		vrb.bullet("Version       : 0." + string(XCFTLS_VERSION) + " / commit = " + string(__COMMIT_ID__) + " / release = " + string (__COMMIT_DATE__));
 		vrb.bullet("Run date      : " + tac.date());
 
 		//List possible modes

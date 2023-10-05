@@ -22,6 +22,6 @@
 #ifndef _VERSION_H
 #define _VERSION_H
 
-#define XCFTLS_VERSION "0.0"
+#define XCFTLS_VERSION "1.0"
 
 #endif

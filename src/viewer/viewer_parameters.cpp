@@ -63,9 +63,9 @@ void viewer::parse_command_line(vector < string > & args) {
 		vrb.error("Impossible to create log file [" + options["log"].as < string > () +"]");
 
 	vrb.title("[XCFtools] Convert from/to XCF files");
-	vrb.bullet("Authors       : Olivier DELANEAU, University of Lausanne");
+	vrb.bullet("Authors       : Olivier DELANEAU and Simone RUBINACCI");
 	vrb.bullet("Contact       : olivier.delaneau@gmail.com");
-	vrb.bullet("Version       : 1." + string(XCFTLS_VERSION) + " / commit = " + string(__COMMIT_ID__) + " / release = " + string (__COMMIT_DATE__));
+	vrb.bullet("Version       : 0." + string(XCFTLS_VERSION) + " / commit = " + string(__COMMIT_ID__) + " / release = " + string (__COMMIT_DATE__));
 	vrb.bullet("Run date      : " + tac.date());
 }
 
