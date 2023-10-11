@@ -29,7 +29,7 @@ using namespace std;
 
 void viewer::view() {
 	//Retrieve parameter values
-	string region = options["region"].as < string > ();
+	string region = (options.count("region")) ? options["region"].as < string > () : "";
 	string format = options["format"].as < string > ();
 	string finput = options["input"].as < string > ();
 	string foutput = options["output"].as < string > ();

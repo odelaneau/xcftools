@@ -183,10 +183,13 @@ public:
 		sync_number = 0;
 		sync_reader = bcf_sr_init();
 		sync_reader->collapse = COLLAPSE_NONE;
-		sync_reader->require_index = 1;
 		if (nthreads > 1) bcf_sr_set_threads(sync_reader, nthreads);
-		if (bcf_sr_set_regions(sync_reader, region.c_str(), 0) == -1) helper_tools::error("Impossible to jump to region [" + region + "]");
-		if (bcf_sr_set_targets(sync_reader, region.c_str(), 0, 0) == -1) helper_tools::error("Impossible to constrain to region [" + region + "]");
+		if (!region.empty())
+		{
+			sync_reader->require_index = 1;
+			if (bcf_sr_set_regions(sync_reader, region.c_str(), 0) == -1) helper_tools::error("Impossible to jump to region [" + region + "]");
+			if (bcf_sr_set_targets(sync_reader, region.c_str(), 0, 0) == -1) helper_tools::error("Impossible to constrain to region [" + region + "]");
+		}
 		vAC = vAN = vSK = NULL;
 		nAC = nAN = nSK = 0;
 	}
@@ -205,6 +208,97 @@ public:
 	//DESTRUCTOR
 	~xcf_reader() {
 		//bcf_sr_destroy(sync_reader);
+	}
+
+	int32_t addFile() {
+		if (sync_number>0) helper_tools::error("Cannot use stdin in combination with other files.");
+		std::string fname="";
+		if ( !isatty(fileno((FILE *)stdin)) ) fname = "-";
+		else helper_tools::error("Error trying to set stdin as input");
+
+		std::string buffer;
+		std::vector < std::string > tokens;
+
+		//Open BCF file and add it in the synchronized reader
+		if (!(bcf_sr_add_reader (sync_reader, fname.c_str()))) {
+			if (sync_reader->errnum) {
+				helper_tools::error("Opening stdin: unknown error. " + std::to_string(sync_reader->errnum));
+			}
+		}
+		//Allocation for Binary record information
+		sync_lines.push_back(NULL);
+		sync_types.push_back(FILE_VOID);
+		sync_flags.push_back(false);
+		bin_fds.push_back(std::ifstream());
+		bin_type.push_back(0);
+		bin_seek.push_back(0);
+		bin_size.push_back(0);
+		bin_curr.push_back(0);
+		AC.push_back(0);
+		AN.push_back(0);
+		ploidy.push_back(-1);
+
+		//Check header for associated binary file
+		int32_t flagSEEK = bcf_hdr_idinfo_exists(sync_reader->readers[sync_number].header, BCF_HL_INFO, bcf_hdr_id2int(sync_reader->readers[sync_number].header, BCF_DT_ID, "SEEK"));
+
+		//Check header for number of samples in BCF
+		uint32_t nsamples = bcf_hdr_nsamples(sync_reader->readers[sync_number].header);
+
+		/************************************************************************************/
+		/*   CASE1: There is a binary file and no data in the BCF / Open the binary file	*/
+		/************************************************************************************/
+		if (flagSEEK && nsamples == 0) {
+			//Open Binary file
+			std::string bfname = helper_tools::get_name_from_vcf(fname) + ".bin";
+			bin_fds[sync_number].open(bfname.c_str(), std::ios::in | std::ios::binary);
+			if (!bin_fds[sync_number]) helper_tools::error("Cannot open file [" + bfname + "] for reading");
+			//Read PED file
+			std::string ped_fname = helper_tools::get_name_from_vcf(fname) + ".fam";
+			std::ifstream fdp(ped_fname);
+			if (!fdp.is_open()) helper_tools::error("Cannot open pedigree file [" + ped_fname + "] for reading");
+			ind_names.push_back(std::vector < std::string >());
+			ind_fathers.push_back(std::vector < std::string >());
+			ind_mothers.push_back(std::vector < std::string >());
+			while (getline(fdp, buffer)) {
+				helper_tools::split(buffer, tokens);
+				ind_names[sync_number].push_back(tokens[0]);
+				if (tokens.size() >=3 ) { ind_fathers[sync_number].push_back(tokens[1]); ind_mothers[sync_number].push_back(tokens[2]); }
+				else { ind_fathers[sync_number].push_back("NA"); ind_mothers[sync_number].push_back("NA"); }
+			}
+			ind_number.push_back(ind_names[sync_number].size());
+			sync_types[sync_number] = FILE_BINARY;
+			fdp.close();
+		}
+
+		/************************************************************************************/
+		/*   CASE2: There is NOT a binary file and data in the BCF 							*/
+		/************************************************************************************/
+		if (!flagSEEK && nsamples != 0) {
+			ind_names.push_back(std::vector < std::string >());
+			for (int i = 0 ; i < nsamples ; i ++)
+				ind_names[sync_number].push_back(std::string(sync_reader->readers[sync_number].header->samples[i]));
+			ind_number.push_back(ind_names[sync_number].size());
+			ind_fathers.push_back(std::vector < std::string >(ind_number[sync_number], "NA"));
+			ind_mothers.push_back(std::vector < std::string >(ind_number[sync_number], "NA"));
+			sync_types[sync_number] = FILE_BCF;
+		}
+
+		/************************************************************************************/
+		/*   CASE3: There is NOT a binary file and No data in the BCF 						*/
+		/************************************************************************************/
+		if (!flagSEEK && nsamples == 0) {
+			ind_number.push_back(0);
+			sync_types[sync_number] = FILE_VOID;
+		}
+
+		/************************************************************************************/
+		/*   CASE4: There is a binary file and data in the BCF 								*/
+		/************************************************************************************/
+		if (flagSEEK && nsamples != 0) helper_tools::error("Binary file found for a non-empty BCF file");
+
+		//Increment number of readers
+		sync_number++;
+		return (sync_number-1);
 	}
 
 	//ADD A NEW FILE IN THE SYNCHRONIZED READER

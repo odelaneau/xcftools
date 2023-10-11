@@ -35,7 +35,7 @@ public:
 
 	//PARAM
 	std::string region;
-	std::string contig;
+	//std::string contig;
 	int nthreads;
 	int mode;
 	float minmaf;

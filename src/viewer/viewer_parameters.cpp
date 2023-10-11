@@ -56,7 +56,9 @@ void viewer::parse_command_line(vector < string > & args) {
 
 	if (options.count("help")) { cout << descriptions << endl; exit(0); }
 
+	string format = options["format"].as < string > ();
 	string output = options["output"].as < string > ();
+	if (!isBCF(format) && output == "-") vrb.error("Only BCF format [bcf] is supported on stdout");
 	if (output == "-") vrb.set_silent();
 
 	if (options.count("log") && !vrb.open_log(options["log"].as < string > ()))
@@ -71,11 +73,14 @@ void viewer::parse_command_line(vector < string > & args) {
 
 void viewer::check_options() {
 	if (!options.count("input")) vrb.error("--input needs to be specified");
-	if (!options.count("region")) vrb.error("--region needs to be specified");
+	if (!options.count("region"))
+		vrb.warning("--region parameter not specified. XCFTOOLS will attempt to read without requiring a specific index/region. Please note that this is experimental and multi-chromosome files can give rise to unexpected behaviors. Please make sure your file has only one chromosome.");
 	if (!options.count("format")) vrb.error("--format needs to be specified");
 
 	string format = options["format"].as < string > ();
+	string input = options["input"].as < string > ();
 	string output = options["output"].as < string > ();
+	if (isBCF(format) && input == "-") vrb.error("Only BCF format [bcf] is supported on stdin");
 	if (!isBCF(format) && output == "-") vrb.error("Only BCF format [bcf] is supported on stdout");
 
 	if (options.count("seed") && options["seed"].as < int > () < 0)
@@ -88,12 +93,14 @@ void viewer::check_options() {
 void viewer::verbose_files() {
 	vrb.title("Files:");
 	string format = options["format"].as < string > ();
+	string input = options["input"].as < string > ();
 	string output = options["output"].as < string > ();
 	if (isXCF(format)) {
-		vrb.bullet("Input BCF     : [" + options["input"].as < string > () + "]");
+		vrb.bullet("Input BCF     : [" + input + "]");
 		vrb.bullet("Output XCF    : [" + output + "]");
 	} else if (isBCF(format)) {
-		vrb.bullet("Input XCF     : [" + options["input"].as < string > () + "]");
+		if (output == "-") vrb.bullet("Input BCF   : [STDOUT] / uncompressed");
+		else vrb.bullet("Input XCF     : [" + options["input"].as < string > () + "]");
 		if (output == "-") vrb.bullet("Output BCF   : [STDOUT] / uncompressed");
 		else vrb.bullet("Output BCF    : [" + options["output"].as < string > () + "]");
 	} else vrb.error("Output format [" + format + "] unrecognized");

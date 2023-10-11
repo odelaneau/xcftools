@@ -33,10 +33,6 @@ using namespace std;
 binary2bcf::binary2bcf(string _region, int _nthreads) {
 	nthreads = _nthreads;
 	region = _region;
-	vector < string > tokens;
-	stb.split(region, tokens, ":");
-	if (tokens.size() == 1 || tokens.size() == 2) contig = tokens[0];
-	else vrb.error("Could not parse --region");
 }
 
 binary2bcf::~binary2bcf() {
@@ -46,8 +42,8 @@ void binary2bcf::convert(string finput, string foutput) {
 	tac.clock();
 
 	vrb.title("Converting from XCF to BCF");
-	vrb.bullet("Region        : " + region);
-	vrb.bullet("Contig        : " + contig);
+	if (region.empty()) vrb.bullet("Region        : All");
+	else vrb.bullet("Region        : " + stb.str(region));
 
 	//Opening XCF reader for input
 	xcf_reader XR(region, nthreads);
@@ -66,7 +62,7 @@ void binary2bcf::convert(string finput, string foutput) {
 	xcf_writer XW(foutput, true, nthreads);
 
 	//Write header
-	XW.writeHeader(samples, contig, string("XCFtools ") + string(XCFTLS_VERSION));
+	XW.writeHeader(XR.sync_reader->readers[0].header, samples, string("XCFtools ") + string(XCFTLS_VERSION));
 
 	//Buffer for input/output
 	int32_t * input_buffer = (int32_t*)malloc(2 * nsamples * sizeof(int32_t));

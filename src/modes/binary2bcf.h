@@ -35,7 +35,6 @@ public:
 
 	//PARAM
 	std::string region;
-	std::string contig;
 	int nthreads;
 
 	//CONSTRUCTORS/DESCTRUCTORS

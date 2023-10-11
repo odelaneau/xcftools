@@ -35,10 +35,6 @@ bcf2binary::bcf2binary(string _region, float _minmaf, int _nthreads, int _mode) 
 	nthreads = _nthreads;
 	region = _region;
 	minmaf = _minmaf;
-	vector < string > tokens;
-	stb.split(region, tokens, ":");
-	if (tokens.size() == 1 || tokens.size() == 2) contig = tokens[0];
-	else vrb.error("Could not parse --region");
 }
 
 bcf2binary::~bcf2binary() {
@@ -53,13 +49,15 @@ void bcf2binary::convert(string finput, string foutput) {
 	case CONV_BCF_SG: vrb.title("Converting from BCF to XCF [Sparse/Genotype]"); break;
 	case CONV_BCF_SH: vrb.title("Converting from BCF to XCF [Sparse/Haplotype]"); break;
 	}
-	vrb.bullet("Region        : " + region);
-	vrb.bullet("Contig        : " + contig);
+
+	if (region.empty()) vrb.bullet("Region        : All");
+	else vrb.bullet("Region        : " + stb.str(region));
+
 	if (mode == CONV_BCF_SG || mode == CONV_BCF_SH) vrb.bullet("Min MAF       : " + stb.str(minmaf));
 
 	//Opening XCF reader for input
 	xcf_reader XR(region, nthreads);
-	int32_t idx_file = XR.addFile(finput);
+	int32_t idx_file = (finput == "-")? XR.addFile() : XR.addFile(finput);
 
 	//Check file type
 	int32_t type = XR.typeFile(idx_file);
@@ -74,7 +72,7 @@ void bcf2binary::convert(string finput, string foutput) {
 	xcf_writer XW(foutput, false, nthreads);
 
 	//Write header
-	XW.writeHeader(samples, contig, string("XCFtools ") + string(XCFTLS_VERSION));
+	XW.writeHeader(XR.sync_reader->readers[0].header, samples, string("XCFtools ") + string(XCFTLS_VERSION));
 
 	//Allocate input/output buffer
 	int32_t * input_buffer = (int32_t*)malloc(2 * nsamples * sizeof(int32_t));
@@ -106,7 +104,8 @@ void bcf2binary::convert(string finput, string foutput) {
 			bool a1 = (bcf_gt_allele(input_buffer[2*i+1])==1);
 			bool mi = (input_buffer[i+0] == bcf_gt_missing || input_buffer[i+1] == bcf_gt_missing);
 
-			if (mi && (mode == CONV_BCF_SH || mode == CONV_BCF_BH)) vrb.error("Missing data in phased data is not permitted!");
+			if (mi && (mode == CONV_BCF_SH || mode == CONV_BCF_BH))
+				vrb.error("Missing data in phased data is not permitted!");
 
 			//BCF => SPARSE GENOTYPE
 			if (mode == CONV_BCF_SG) {
