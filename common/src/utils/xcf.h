@@ -179,7 +179,7 @@ public:
 
 
 	//CONSTRUCTOR
-	xcf_reader(std::string region, uint32_t nthreads) : pos(0), multi(false) {
+	xcf_reader(std::string region, uint32_t nthreads) : multi(false),pos(0) {
 		sync_number = 0;
 		sync_reader = bcf_sr_init();
 		sync_reader->collapse = COLLAPSE_NONE;
@@ -195,7 +195,7 @@ public:
 	}
 
 	//CONSTRUCTOR
-	xcf_reader(uint32_t nthreads) : pos(0), multi(false) {
+	xcf_reader(uint32_t nthreads) : multi(false),pos(0) {
 		sync_number = 0;
 		sync_reader = bcf_sr_init();
 		sync_reader->collapse = COLLAPSE_NONE;
@@ -502,7 +502,8 @@ public:
 
 					//Get SEEK information
 					if (sync_types[r] == FILE_BINARY) {
-						int32_t rsk = bcf_get_info_int32(sync_reader->readers[r].header, sync_lines[r], "SEEK", &vSK, &nSK);
+						if (bcf_get_info_int32(sync_reader->readers[r].header, sync_lines[r], "SEEK", &vSK, &nSK) < 0)
+							helper_tools::error("Could not fine INFO/SEEK fields");
 						if (nSK != 4) helper_tools::error("INFO/SEEK field should contain 4 numbers");
 						else {
 							bin_type[r] = vSK[0];
