@@ -180,6 +180,17 @@ public:
 
 	//CONSTRUCTOR
 	xcf_reader(std::string region, uint32_t nthreads) : multi(false),pos(0) {
+		if (region.empty())
+		{
+			sync_number = 0;
+			sync_reader = bcf_sr_init();
+			sync_reader->collapse = COLLAPSE_NONE;
+			sync_reader->require_index = 1;
+			if (nthreads > 1) bcf_sr_set_threads(sync_reader, nthreads);
+			vAC = vAN = vSK = NULL;
+			nAC = nAN = nSK = 0;
+			return;
+		}
 		sync_number = 0;
 		sync_reader = bcf_sr_init();
 		sync_reader->collapse = COLLAPSE_NONE;
@@ -724,6 +735,14 @@ public:
 		//close();
 	}
 
+	void writeHeaderRemoveSamples(bcf_hdr_t * hdr) //copy header, remove all samples
+	{
+		hts_hdr = bcf_hdr_subset(hdr, 0, NULL,NULL);
+		bcf_hdr_add_sample(hts_hdr, NULL);
+		if (bcf_hdr_write(hts_fd, hts_hdr) < 0) helper_tools::error("Failing to write BCF/header");
+		bcf_clear1(hts_record);
+	}
+
 	void writeHeader(bcf_hdr_t * hdr) //copy header
 	{
 		hts_hdr = bcf_hdr_dup(hdr);
@@ -865,6 +884,11 @@ public:
 			bin_seek += nbytes;
 			bcf_update_info_int32(hts_hdr, hts_record, "SEEK", vsk, 4);
 		}
+		if (bcf_write1(hts_fd, hts_hdr, hts_record) < 0) helper_tools::error("Failing to write VCF/record for rare variants");
+		bcf_clear1(hts_record);
+	}
+	//Write only info field (empty genotypes)
+	void writeRecord() {
 		if (bcf_write1(hts_fd, hts_hdr, hts_record) < 0) helper_tools::error("Failing to write VCF/record for rare variants");
 		bcf_clear1(hts_record);
 	}
