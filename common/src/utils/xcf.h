@@ -30,6 +30,7 @@
 #include <regex>
 #include <chrono>
 #include <iomanip>
+#include <map>
 
 
 //INCLUDE HTS LIBRARY
