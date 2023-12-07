@@ -29,7 +29,13 @@ BFILE=bin/$(NAME)
 MACFILE=bin/$(NAME)_mac
 EXEFILE=bin/$(NAME)_static
 
-#CONDITIONAL PATH DEFINITON
+#CONDITIONAL PATH DEFINITONS
+docker: EXEFILE=bin/$(NAME)
+docker: DYN_LIBS=-lz -lpthread -lbz2 -llzma \
+	-lboost_iostreams -lboost_program_options -lboost_serialization \
+	-lcurl -lgcrypt -lhts
+docker: $(BFILE)
+
 system: DYN_LIBS=-lz -lpthread -lbz2 -llzma
 system: HTSSRC=/usr/local
 system: HTSLIB_INC=$(HTSSRC)/include/htslib
