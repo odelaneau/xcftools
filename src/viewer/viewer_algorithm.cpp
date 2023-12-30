@@ -34,19 +34,20 @@ void viewer::view() {
 	string finput = options["input"].as < string > ();
 	string foutput = options["output"].as < string > ();
 	uint32_t nthreads = options["threads"].as < int > ();
+	bool drop_info = options.count("drop-info");
 	float maf = options["maf"].as < float > ();
 
 	//
-	if (format == "bg") bcf2binary (region, maf, nthreads, CONV_BCF_BG).convert(finput, foutput);
+	if (format == "bg") bcf2binary (region, maf, nthreads, CONV_BCF_BG,drop_info).convert(finput, foutput);
 
 	//
-	else if (format == "bh") bcf2binary (region, maf, nthreads, CONV_BCF_BH).convert(finput, foutput);
+	else if (format == "bh") bcf2binary (region, maf, nthreads, CONV_BCF_BH,drop_info).convert(finput, foutput);
 
 	//
-	else if (format == "sg") bcf2binary (region, maf, nthreads, CONV_BCF_SG).convert(finput, foutput);
+	else if (format == "sg") bcf2binary (region, maf, nthreads, CONV_BCF_SG,drop_info).convert(finput, foutput);
 
 	//
-	else if (format == "sh") bcf2binary (region, maf, nthreads, CONV_BCF_SH).convert(finput, foutput);
+	else if (format == "sh") bcf2binary (region, maf, nthreads, CONV_BCF_SH,drop_info).convert(finput, foutput);
 
 	//
 	else  if (isBCF(format)) binary2bcf (region, nthreads).convert(finput, foutput);

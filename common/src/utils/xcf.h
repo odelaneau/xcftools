@@ -170,6 +170,7 @@ public:
 	std::vector < std::vector < std::string > > ind_names;
 	std::vector < std::vector < std::string > > ind_fathers;
 	std::vector < std::vector < std::string > > ind_mothers;
+	std::vector < std::vector < std::string > > ind_pops;
 
 	//Binary files [files x types]
 	std::vector < std::ifstream > bin_fds;		//File Descriptors
@@ -186,7 +187,7 @@ public:
 			sync_number = 0;
 			sync_reader = bcf_sr_init();
 			sync_reader->collapse = COLLAPSE_NONE;
-			sync_reader->require_index = 1;
+			//sync_reader->require_index = 1;
 			if (nthreads > 1) bcf_sr_set_threads(sync_reader, nthreads);
 			vAC = vAN = vSK = NULL;
 			nAC = nAN = nSK = 0;
@@ -211,7 +212,7 @@ public:
 		sync_number = 0;
 		sync_reader = bcf_sr_init();
 		sync_reader->collapse = COLLAPSE_NONE;
-		sync_reader->require_index = 1;
+		//sync_reader->require_index = 1;
 		if (nthreads > 1) bcf_sr_set_threads(sync_reader, nthreads);
 		vAC = vAN = vSK = NULL;
 		nAC = nAN = nSK = 0;
@@ -271,11 +272,17 @@ public:
 			ind_names.push_back(std::vector < std::string >());
 			ind_fathers.push_back(std::vector < std::string >());
 			ind_mothers.push_back(std::vector < std::string >());
+			ind_pops.push_back(std::vector < std::string >());
 			while (getline(fdp, buffer)) {
 				helper_tools::split(buffer, tokens);
 				ind_names[sync_number].push_back(tokens[0]);
-				if (tokens.size() >=3 ) { ind_fathers[sync_number].push_back(tokens[1]); ind_mothers[sync_number].push_back(tokens[2]); }
-				else { ind_fathers[sync_number].push_back("NA"); ind_mothers[sync_number].push_back("NA"); }
+				if (tokens.size() >=3 )
+				{
+					ind_fathers[sync_number].push_back(tokens[1]); ind_mothers[sync_number].push_back(tokens[2]);
+					if (tokens.size() > 3) ind_pops[sync_number].push_back(tokens[3]);
+					else ind_pops[sync_number].push_back("NA");
+				}
+				else { ind_fathers[sync_number].push_back("NA"); ind_mothers[sync_number].push_back("NA"); ind_pops[sync_number].push_back("NA");}
 			}
 			ind_number.push_back(ind_names[sync_number].size());
 			sync_types[sync_number] = FILE_BINARY;
@@ -292,6 +299,7 @@ public:
 			ind_number.push_back(ind_names[sync_number].size());
 			ind_fathers.push_back(std::vector < std::string >(ind_number[sync_number], "NA"));
 			ind_mothers.push_back(std::vector < std::string >(ind_number[sync_number], "NA"));
+			ind_pops.push_back(std::vector < std::string >(ind_number[sync_number], "NA"));
 			sync_types[sync_number] = FILE_BCF;
 		}
 
@@ -362,11 +370,17 @@ public:
 			ind_names.push_back(std::vector < std::string >());
 			ind_fathers.push_back(std::vector < std::string >());
 			ind_mothers.push_back(std::vector < std::string >());
+			ind_pops.push_back(std::vector < std::string >());
 			while (getline(fdp, buffer)) {
 				helper_tools::split(buffer, tokens);
 				ind_names[sync_number].push_back(tokens[0]);
-				if (tokens.size() >=3 ) { ind_fathers[sync_number].push_back(tokens[1]); ind_mothers[sync_number].push_back(tokens[2]); }
-				else { ind_fathers[sync_number].push_back("NA"); ind_mothers[sync_number].push_back("NA"); }
+				if (tokens.size() >=3 )
+				{
+					ind_fathers[sync_number].push_back(tokens[1]); ind_mothers[sync_number].push_back(tokens[2]);
+					if (tokens.size() > 3) ind_pops[sync_number].push_back(tokens[3]);
+					else ind_pops[sync_number].push_back("NA");
+				}
+				else { ind_fathers[sync_number].push_back("NA"); ind_mothers[sync_number].push_back("NA"); ind_pops[sync_number].push_back("NA");}
 			}
 			ind_number.push_back(ind_names[sync_number].size());
 			sync_types[sync_number] = FILE_BINARY;
@@ -383,6 +397,7 @@ public:
 			ind_number.push_back(ind_names[sync_number].size());
 			ind_fathers.push_back(std::vector < std::string >(ind_number[sync_number], "NA"));
 			ind_mothers.push_back(std::vector < std::string >(ind_number[sync_number], "NA"));
+			ind_pops.push_back(std::vector < std::string >(ind_number[sync_number], "NA"));
 			sync_types[sync_number] = FILE_BCF;
 		}
 
@@ -424,6 +439,7 @@ public:
 		ind_names.erase(ind_names.begin() + file);
 		ind_fathers.erase(ind_fathers.begin() + file);
 		ind_mothers.erase(ind_mothers.begin() + file);
+		ind_pops.erase(ind_pops.begin() + file);
 		ind_number.erase(ind_number.begin()+file);
 
 		//Decrement number of readers
@@ -455,8 +471,8 @@ public:
 	uint32_t getAN(uint32_t file) { return AN[file]; }
 	uint32_t getAC() { return std::accumulate(AC.begin(), AC.end(), 0); }
 	uint32_t getAN() { return std::accumulate(AN.begin(), AN.end(), 0); }
-	float getAF(uint32_t file) { return AC[file]*1.0f/AN[file]; }
-	float getAF() { return std::accumulate(AC.begin(), AC.end(), 0)*1.0f/std::accumulate(AN.begin(), AN.end(), 0); }
+	float getAF(uint32_t file) const { return AC[file]*1.0f/AN[file]; }
+	float getAF() const { return std::accumulate(AC.begin(), AC.end(), 0)*1.0f/std::accumulate(AN.begin(), AN.end(), 0); }
 
 	int32_t getPloidy(uint32_t file) { return ploidy[file]; }
 	uint32_t getChrId(uint32_t file) { return bcf_hdr_name2id(sync_reader->readers[file].header, bcf_seqname(sync_reader->readers[file].header,sync_lines[file])); }
@@ -561,7 +577,7 @@ public:
 	// 0: BCF file without sample data available
 	// 1: BCF file with sample data available
 	// 2 []: Binary file There is a record with sample data in Binary file / return the type of binary record
-	int32_t typeRecord(uint32_t file) {
+	int32_t typeRecord(uint32_t file) const {
 		return bin_type[file];
 	}
 
@@ -667,6 +683,7 @@ class xcf_writer {
 public:
 	//HTS part
 	std::string hts_fname;
+	std::string hts_fidx;
 	htsFile * hts_fd;
 	bcf_hdr_t * hts_hdr;
 	bcf1_t * hts_record;
@@ -683,6 +700,8 @@ public:
 	std::vector < std::string > ind_names;
 	std::vector < std::string > ind_fathers;
 	std::vector < std::string > ind_mothers;
+	std::vector < std::string > ind_pops;
+
 
 	//Binary files [files x types]
 	std::ofstream bin_fds;						//File Descriptors
@@ -721,6 +740,8 @@ public:
 
 		hts_fd = hts_open(hts_fname.c_str(), oformat.c_str());
 	    if (!hts_fd)  helper_tools::error("Could not open " + hts_fname);
+	    if (hts_fname!="-") hts_fidx = hts_fname + ".csi";
+	    else hts_fidx = "";
 		if (nthreads > 1) hts_set_threads(hts_fd, nthreads);
 
 		if (!hts_genotypes) {
@@ -736,11 +757,15 @@ public:
 		//close();
 	}
 
-	void writeHeaderRemoveSamples(bcf_hdr_t * hdr) //copy header, remove all samples
+	void writeHeaderRemoveSamples(bcf_hdr_t * hdr) //copy header, remove all samples //No FAM managment here
 	{
 		hts_hdr = bcf_hdr_subset(hdr, 0, NULL,NULL);
 		bcf_hdr_add_sample(hts_hdr, NULL);
+		bcf_hdr_remove(hts_hdr, BCF_HL_FMT, NULL);
 		if (bcf_hdr_write(hts_fd, hts_hdr) < 0) helper_tools::error("Failing to write BCF/header");
+		if (!hts_fidx.empty())
+			if (bcf_idx_init(hts_fd, hts_hdr, 14, hts_fidx.c_str()))
+				helper_tools::error("Initializing .csi");
 		bcf_clear1(hts_record);
 	}
 
@@ -748,7 +773,43 @@ public:
 	{
 		hts_hdr = bcf_hdr_dup(hdr);
 		bcf_hdr_add_sample(hts_hdr, NULL);
+		bcf_hdr_remove(hts_hdr, BCF_HL_FMT, NULL);
 		if (bcf_hdr_write(hts_fd, hts_hdr) < 0) helper_tools::error("Failing to write BCF/header");
+		if (!hts_fidx.empty())
+			if (bcf_idx_init(hts_fd, hts_hdr, 14, hts_fidx.c_str()))
+				helper_tools::error("Initializing .csi");
+		bcf_clear1(hts_record);
+	}
+
+	void writeHeaderClone(bcf_hdr_t * hdr, std::vector < std::string > & samples, std::string source) //copy header, remove all samples //No FAM managment here
+	{
+		hts_hdr = bcf_hdr_subset(hdr, 0, NULL,NULL);
+		bcf_hdr_add_sample(hts_hdr, NULL);
+		bcf_hdr_remove(hts_hdr, BCF_HL_FMT, NULL);
+		bcf_hdr_append(hts_hdr, std::string("##fileDate="+helper_tools::date()).c_str());
+		bcf_hdr_append(hts_hdr, std::string("##source=" + source).c_str());
+		bcf_hdr_append(hts_hdr, "##INFO=<ID=AC,Number=A,Type=Integer,Description=\"ALT allele count\">");
+		bcf_hdr_append(hts_hdr, "##INFO=<ID=AN,Number=1,Type=Integer,Description=\"Number of alleles\">");
+		if (hts_genotypes) bcf_hdr_append(hts_hdr, "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Phased genotypes\">");
+		else bcf_hdr_append(hts_hdr, "##INFO=<ID=SEEK,Number=4,Type=Integer,Description=\"SEEK binary file information\">");
+		//Write sample IDs
+		if (hts_genotypes) {
+			//Samples are in BCF header
+			for (uint32_t i = 0 ; i < samples.size() ; i++) bcf_hdr_add_sample(hts_hdr, samples[i].c_str());
+			bcf_hdr_add_sample(hts_hdr, NULL);      // to update internal structures
+		} else {
+			//Samples are in PED file
+			std::string ffname = helper_tools::get_name_from_vcf(hts_fname) + ".fam";
+			std::ofstream fd (ffname);
+			if (!fd.is_open()) helper_tools::error("Cannot open [" + ffname + "] for writing");
+			for (uint32_t i = 0 ; i < samples.size() ; i++) fd << samples[i] << "\tNA\tNA" << std::endl;
+			fd.close();
+		}
+
+		if (bcf_hdr_write(hts_fd, hts_hdr) < 0) helper_tools::error("Failing to write BCF/header");
+		if (!hts_fidx.empty())
+			if (bcf_idx_init(hts_fd, hts_hdr, 14, hts_fidx.c_str()))
+				helper_tools::error("Initializing .csi");
 		bcf_clear1(hts_record);
 	}
 
@@ -785,36 +846,9 @@ public:
 			fd.close();
 		}
 		if (bcf_hdr_write(hts_fd, hts_hdr) < 0) helper_tools::error("Failing to write BCF/header");
-		bcf_clear1(hts_record);
-	}
-
-	//Write sample IDs
-	void writeHeader(std::vector < std::string > & samples, std::string contig, std::string source)
-	{
-		//
-		hts_hdr = bcf_hdr_init("w");
-		bcf_hdr_append(hts_hdr, std::string("##fileDate="+helper_tools::date()).c_str());
-		bcf_hdr_append(hts_hdr, std::string("##source=" + source).c_str());
-		bcf_hdr_append(hts_hdr, std::string("##contig=<ID="+ contig + ">").c_str());
-		bcf_hdr_append(hts_hdr, "##INFO=<ID=AC,Number=A,Type=Integer,Description=\"ALT allele count\">");
-		bcf_hdr_append(hts_hdr, "##INFO=<ID=AN,Number=1,Type=Integer,Description=\"Number of alleles\">");
-		if (hts_genotypes) bcf_hdr_append(hts_hdr, "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Phased genotypes\">");
-		else bcf_hdr_append(hts_hdr, "##INFO=<ID=SEEK,Number=4,Type=Integer,Description=\"SEEK binary file information\">");
-
-		//Write sample IDs
-		if (hts_genotypes) {
-			//Samples are in BCF header
-			for (uint32_t i = 0 ; i < samples.size() ; i++) bcf_hdr_add_sample(hts_hdr, samples[i].c_str());
-			bcf_hdr_add_sample(hts_hdr, NULL);      // to update internal structures
-		} else {
-			//Samples are in PED file
-			std::string ffname = helper_tools::get_name_from_vcf(hts_fname) + ".fam";
-			std::ofstream fd (ffname);
-			if (!fd.is_open()) helper_tools::error("Cannot open [" + ffname + "] for writing");
-			for (uint32_t i = 0 ; i < samples.size() ; i++) fd << samples[i] << "\tNA\tNA" << std::endl;
-			fd.close();
-		}
-		if (bcf_hdr_write(hts_fd, hts_hdr) < 0) helper_tools::error("Failing to write BCF/header");
+		if (!hts_fidx.empty())
+			if (bcf_idx_init(hts_fd, hts_hdr, 14, hts_fidx.c_str()))
+				helper_tools::error("Initializing .csi");
 		bcf_clear1(hts_record);
 	}
 
@@ -848,6 +882,9 @@ public:
 			fd.close();
 		}
 		if (bcf_hdr_write(hts_fd, hts_hdr) < 0) helper_tools::error("Failing to write VCF/header");
+		if (!hts_fidx.empty())
+			if (bcf_idx_init(hts_fd, hts_hdr, 14, hts_fidx.c_str()))
+				helper_tools::error("Initializing .csi");
 		bcf_clear1(hts_record);
 	}
 
@@ -885,24 +922,26 @@ public:
 			bin_seek += nbytes;
 			bcf_update_info_int32(hts_hdr, hts_record, "SEEK", vsk, 4);
 		}
-		if (bcf_write1(hts_fd, hts_hdr, hts_record) < 0) helper_tools::error("Failing to write VCF/record for rare variants");
-		bcf_clear1(hts_record);
+		writeRecord(hts_record);
 	}
 	//Write only info field (empty genotypes)
 	void writeRecord() {
-		if (bcf_write1(hts_fd, hts_hdr, hts_record) < 0) helper_tools::error("Failing to write VCF/record for rare variants");
-		bcf_clear1(hts_record);
+		writeRecord(hts_record);
 	}
 
-	void close() {
+	void writeRecord(bcf1_t* rec) {
+			if (bcf_write1(hts_fd, hts_hdr, rec) < 0) helper_tools::error("Failing to write VCF/record for rare variants");
+			bcf_clear1(hts_record);
+		}
+
+	void close()
+	{
+		if (!hts_fidx.empty()) if (bcf_idx_save(hts_fd)) helper_tools::error("Writing .csi index");
+
 		free(vsk);
 		bcf_destroy1(hts_record);
 		bcf_hdr_destroy(hts_hdr);
 		if (hts_close(hts_fd)) helper_tools::error("Non zero status when closing [" + hts_fname + "]");
-		if (hts_fname!="-") {
-			if (bcf_index_build3(hts_fname.c_str(), NULL, 14, nthreads) < 0) helper_tools::error("Fail to index file [" + hts_fname + "]");
-		}
-
 	}
 };
 

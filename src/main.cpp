@@ -23,6 +23,7 @@
 #define _DECLARE_TOOLBOX_HERE
 #include <viewer/viewer_header.h>
 #include <concat/concat_header.h>
+#include <fill_tags/fill_tags_header.h>
 
 #include "../versions/versions.h"
 
@@ -33,7 +34,7 @@ int main(int argc, char ** argv) {
 
 	string mode = (argc>1)?string(argv[1]):"";
 
-	if (argc == 1 || (mode != "view" && mode != "concat")) {
+	if (argc == 1 || (mode != "view" && mode != "concat" && mode != "fill-tags")) {
 
 		vrb.title("[XCFtools] Manage XCF files");
 		vrb.bullet("Authors       : Olivier DELANEAU and Simone RUBINACCI");
@@ -45,6 +46,7 @@ int main(int argc, char ** argv) {
 		vrb.title("Supported modes:");
 		vrb.bullet("[view]\t| Converts between XCF and BCF files");
 		vrb.bullet("[concat]\t| Concat multiple XCF files together");
+		vrb.bullet("[fill-tags]\t| Set INFO tags AF, AC, AC_Hom, AC_Het, AN, ExcHet, HWE, MAF, NS. [Note: AC_Hemi, FORMAT tag VAF, custom INFO/TAG=func(FMT/TAG) not supported]");
 
 	} else {
 		//Get args
@@ -55,10 +57,13 @@ int main(int argc, char ** argv) {
 
 		if (mode == "view") {
 			viewer().view(args);
-		} else if (mode == "concat") {
+		}
+		else if (mode == "concat") {
 			concat().concatenate(args);
+		}
+		else if (mode == "fill-tags") {
+			fill_tags(args).run();
 		}
 	}
 	return 0;
 }
-

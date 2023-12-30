@@ -43,6 +43,7 @@ void viewer::declare_options() {
 	opt_output.add_options()
 			("output,o", bpo::value< string >()->default_value("-"), "Output file [- for stdout]")
 			("format,O", bpo::value< string >()->default_value("bcf"), "Output file format")
+			("drop-info","Drop INFO fields creating a minimal BCF file (only AC,AN and SEEK in output)")
 			("log", bpo::value< string >(), "Output log file");
 
 	descriptions.add(opt_base).add(opt_input).add(opt_output);

@@ -20,34 +20,19 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#ifndef _BCF2BINARY_H
-#define _BCF2BINARY_H
+#include <fill_tags/fill_tags_header.h>
 
-#define CONV_BCF_BG	0
-#define CONV_BCF_BH	1
-#define CONV_BCF_SG	2
-#define CONV_BCF_SH	3
+using namespace std;
 
-#include <utils/otools.h>
+fill_tags::fill_tags(std::vector < std::string > & args) : A(args)
+{
+}
 
-class bcf2binary {
-public:
+fill_tags::~fill_tags() {
+}
 
-	//PARAM
-	std::string region;
-	//std::string contig;
-	int nthreads;
-	int mode;
-	float minmaf;
-	bool drop_info;
-
-
-	//CONSTRUCTORS/DESCTRUCTORS
-	bcf2binary(std::string, float, int, int, bool);
-	~bcf2binary();
-
-	//PROCESS
-	void convert(std::string, std::string);
-};
-
-#endif
+void fill_tags::run() {
+	read_files_and_initialise();
+	run_algorithm();
+	write_files_and_finalise();
+}
