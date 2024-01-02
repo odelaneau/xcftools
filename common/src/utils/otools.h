@@ -47,6 +47,7 @@
 #include <boost/program_options.hpp>
 #include <boost/uuid/uuid.hpp>
 #include <boost/align/aligned_allocator.hpp>
+#include <boost/math/distributions/chi_squared.hpp>
 
 //INCLUDE HTS LIBRARY
 #include <htslib/hts.h>
@@ -69,6 +70,10 @@ extern "C" {
 #include <utils/string_utils.h>
 #include <utils/timer.h>
 #include <utils/verbose.h>
+
+//#ifdef __RMATH_LIB__
+//	#include <Rmath.h>
+//#endif
 
 //TYPEDEFS
 template <typename T>

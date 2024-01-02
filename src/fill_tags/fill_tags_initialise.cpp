@@ -45,8 +45,10 @@ void fill_tags::hdr_append(bcf_hdr_t* out_hdr)
         //if ( A.mTags & SET_AC_Hemi ) bcf_hdr_printf(out_hdr, std::string("##INFO=<ID=AC_Hemi" + s0 + ",Number=A,Type=Integer,Description=\"Allele counts in hemizygous genotypes" + s1 + s2 + "\">").c_str());
         if ( A.mTags & SET_AF ) bcf_hdr_printf(out_hdr, std::string("##INFO=<ID=AF" + s0 + ",Number=A,Type=Float,Description=\"Allele frequency" + s1 + s2 + "\">").c_str());
         if ( A.mTags & SET_MAF ) bcf_hdr_printf(out_hdr, std::string("##INFO=<ID=MAF" + s0 + ",Number=1,Type=Float,Description=\"Frequency of the second most common allele" + s1 + s2 + "\">").c_str());
-        if ( A.mTags & SET_HWE ) bcf_hdr_printf(out_hdr, std::string("##INFO=<ID=HWE" + s0 + ",Number=A,Type=Float,Description=\"HWE test" + s1 + s2 + " (PMID:15789306); 1=good, 0=bad\">").c_str());
-        if ( A.mTags & SET_ExcHet ) bcf_hdr_printf(out_hdr, std::string("##INFO=<ID=ExcHet" + s0 + ",Number=A,Type=Float,Description=\"Test excess heterozygosity" + s1 + s2 + "; 1=good, 0=bad\">").c_str());
+        if ( A.mTags & SET_IC ) bcf_hdr_printf(out_hdr, std::string("##INFO=<ID=IC" + s0 + ",Number=A,Type=Float,Description=\"Inbreeding coefficient (based on Hardy-Weinberg Equilibrium heterozygosity) " + s1 + s2 + "\">").c_str());
+        if ( A.mTags & SET_HWE ) bcf_hdr_printf(out_hdr, std::string("##INFO=<ID=HWE" + s0 + ",Number=A,Type=Float,Description=\"Hardy-Weinberg Equilibrium test" + s1 + s2 + " (PMID:15789306); 1=good, 0=bad\">").c_str());
+        if ( A.mTags & SET_HWE ) bcf_hdr_printf(out_hdr, std::string("##INFO=<ID=HWE_CHISQ" + s0 + ",Number=A,Type=Float,Description=\"Chi-squared Hardy-Weinberg Equilibrium P-value" + s1 + s2 + "\">").c_str());
+        if ( A.mTags & SET_ExcHet ) bcf_hdr_printf(out_hdr, std::string("##INFO=<ID=ExcHet" + s0 + ",Number=A,Type=Float,Description=\"Excess of heterozygosity P-value" + s1 + s2 + "; 1=good, 0=bad\">").c_str());
     }
     if ( A.mTags & SET_END ) bcf_hdr_printf(out_hdr, "##INFO=<ID=END,Number=1,Type=Integer,Description=\"End position of the variant\">");
     if ( A.mTags & SET_TYPE ) bcf_hdr_printf(out_hdr, "##INFO=<ID=TYPE,Number=.,Type=String,Description=\"Variant type\">");

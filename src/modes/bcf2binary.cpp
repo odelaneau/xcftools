@@ -102,7 +102,7 @@ void bcf2binary::convert(string finput, string foutput) {
 		for (uint32_t i = 0 ; i < nsamples ; i++) {
 			bool a0 = (bcf_gt_allele(input_buffer[2*i+0])==1);
 			bool a1 = (bcf_gt_allele(input_buffer[2*i+1])==1);
-			bool mi = (input_buffer[i+0] == bcf_gt_missing || input_buffer[i+1] == bcf_gt_missing);
+			bool mi = (input_buffer[2*i+0] == bcf_gt_missing || input_buffer[2*i+1] == bcf_gt_missing);
 
 			if (mi && (mode == CONV_BCF_SH || mode == CONV_BCF_BH))
 				vrb.error("Missing data in phased data is not permitted!");

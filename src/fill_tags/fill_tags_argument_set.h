@@ -15,6 +15,7 @@
 #define SET_ExcHet  (1<<9)
 #define SET_END     (1<<11)
 #define SET_TYPE    (1<<12)
+#define SET_IC      (1<<13)
 
 static std::unordered_map<std::string, uint32_t> tagMap = {
 	{"AN", SET_AN},
@@ -38,7 +39,9 @@ static std::unordered_map<std::string, uint32_t> tagMap = {
 	{"END", SET_END},
 	{"INFO/END", SET_END},
 	{"TYPE", SET_TYPE},
-	{"INFO/TYPE", SET_TYPE}
+	{"INFO/TYPE", SET_TYPE},
+	{"IC", SET_IC},
+	{"INFO/IC", SET_IC}
 
 	//no VAF, VAF1 and FMISSING
 };
@@ -49,9 +52,11 @@ static std::string tag_str_description =
 		  "INFO/AC_Het    Number:A  Type:Integer  ..  Allele counts in heterozygous genotypes\n"
 		  "INFO/AF        Number:A  Type:Float    ..  Allele frequency from FMT/GT or AC,AN if FMT/GT is not present\n"
 		  "INFO/AN        Number:1  Type:Integer  ..  Total number of alleles in called genotypes\n"
-		  "INFO/ExcHet    Number:A  Type:Float    ..  Test excess heterozygosity; 1=good, 0=bad\n"
+		  "INFO/ExcHet    Number:A  Type:Float    ..  Excess of heterozygosity P-value; 1=good, 0=bad\n"
 		  "INFO/END       Number:1  Type:Integer  ..  End position of the variant\n"
-		  "INFO/HWE       Number:A  Type:Float    ..  HWE test (PMID:15789306); 1=good, 0=bad\n"
+		  "INFO/HWE       Number:A  Type:Float    ..  Exact Hardy-Weinberg Equilibrium P-value (PMID:15789306); 1=good, 0=bad\n"
+		  "INFO/HWE_CHISQ Number:A  Type:Float    ..  Chi-squared Hardy-Weinberg Equilibrium P-value (PMID:15789306); 1=good, 0=bad\n"
+		  "INFO/IC        Number:A  Type:Float    ..  Inbreeding coefficient (based on Hardy-Weinberg Equilibrium heterozygosity)\n"
 		  "INFO/MAF       Number:1  Type:Float    ..  Frequency of the second most common allele\n"
 		  "INFO/NS        Number:1  Type:Integer  ..  Number of samples with data\n"
 		  "INFO/TYPE      Number:.  Type:String   ..  The record type (REF,SNP,MNP,INDEL,etc)\n";

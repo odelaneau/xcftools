@@ -58,7 +58,6 @@ public:
 
 	bitvector binary_bit_buf;
 	std::vector<int32_t> sparse_int_buf;
-	std::vector<double> hwe_probs;
 
 	//CONSTRUCTOR
 	fill_tags(std::vector < std::string > &);
@@ -81,8 +80,10 @@ public:
 	void prepare_output(const xcf_reader& XR, xcf_writer& XW,const uint32_t idx_file);
 	void process_populations(const xcf_reader& XR, const uint32_t idx_file);
 	void parse_genotypes(xcf_reader& XR, const uint32_t idx_file);
-	void process_tags(const xcf_reader& XR, xcf_writer& XW,const uint32_t idx_file);
-	void calc_hwe(int nref, int nalt, int nhet, float *p_hwe, float *p_exc_het);
+	void process_tags(const xcf_reader& XR, xcf_writer& XW,const uint32_t idx_file, std::vector<double>& hwe_probs);
+	void calc_hwe(int nref, int nalt, int nhet, std::vector<double>& hwe_probs, float *p_hwe, float *p_exc_het) const;
+	void calc_hwe_chisq(const int an, const int fcnt0, const int nhom0, const int nhom1, const int nhet, float *p_chi_square_pval) const;
+	void calc_inbreeding_f(const int an, const int fcnt0, const int nhet, float *inbreeding_f) const;
 
 	void view(std::vector < std::string > &);
 	void write_files_and_finalise();

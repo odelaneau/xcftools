@@ -27,6 +27,7 @@ void fill_tags::set_sparse(const uint32_t pop, const bool major)
 {
 	assert(pop2samples[pop].size() >= pop_counts[pop].ns + pop_counts[pop].mis);
 	pop_counts[pop].nhom[major] += (pop2samples[pop].size()-pop_counts[pop].ns-pop_counts[pop].mis)*2;
+	pop_counts[pop].ns = pop2samples[pop].size() - pop_counts[pop].mis;
 }
 
 void fill_tags::set_missing(const uint32_t pop)
@@ -60,12 +61,13 @@ void fill_tags::run_algorithm()
 	vrb.title("[Fill-tags] Processing variants");
 	binary_bit_buf.allocate(2 * nsamples);
 	sparse_int_buf.resize(2 * nsamples,0);
+	std::vector<double> hwe_probs;
 	uint32_t n_lines = 0;
 
 	while (XR.nextRecord())
 	{
 		parse_genotypes(XR,idx_file);
-		process_tags(XR, XW, idx_file);
+		process_tags(XR, XW, idx_file, hwe_probs);
 	    XW.writeRecord(XR.sync_lines[idx_file]);
 
 		if (++n_lines % 10000 == 0) vrb.bullet("Number of XCF records processed: N = " + stb.str(n_lines));
@@ -116,10 +118,9 @@ void fill_tags::parse_genotypes(xcf_reader& XR, const uint32_t idx_file)
 		sparse_int_buf.resize(XR.bin_size[idx_file]/ sizeof(int32_t));
 		XR.readRecord(idx_file, reinterpret_cast< char* > (sparse_int_buf.data()));
 		const bool major = (XR.getAF(idx_file)>0.5f);
-		for(uint32_t r = 0 ; r < sparse_int_buf.size() ; r++)//TODO check
+		for(uint32_t r = 0 ; r < sparse_int_buf.size() ; r++)
 		{
-			sparse_genotype rg;
-			rg.set(sparse_int_buf[r]);
+			sparse_genotype rg(sparse_int_buf[r]);
 			for (auto p=0; p<samples2pop[rg.idx].size(); ++p)
 				rg.mis ? set_missing(samples2pop[rg.idx][p]) : set_counts(samples2pop[rg.idx][p], rg.al0,rg.al1);
 		}
@@ -149,7 +150,7 @@ void fill_tags::parse_genotypes(xcf_reader& XR, const uint32_t idx_file)
 }
 
 
-void fill_tags::process_tags(const xcf_reader& XR, xcf_writer& XW,const uint32_t idx_file)
+void fill_tags::process_tags(const xcf_reader& XR, xcf_writer& XW,const uint32_t idx_file, std::vector<double>& hwe_probs)
 {
 	const int32_t type = XR.typeRecord(idx_file);
 	bcf1_t* rec = XR.sync_lines[idx_file];
@@ -170,6 +171,8 @@ void fill_tags::process_tags(const xcf_reader& XR, xcf_writer& XW,const uint32_t
 		{
 			const int nref = pop_counts[p].nhet[0] + pop_counts[p].nhom[0];
 			const int nalt = pop_counts[p].nhet[1] + pop_counts[p].nhom[1];
+			const int nhom0 = pop_counts[p].nhom[0];
+			const int nhom1 = pop_counts[p].nhom[1];
 			const int nhet = pop_counts[p].nhet[1];
 			const std::array<int,2> fcnt = {
 					pop_counts[p].nhet[0] + pop_counts[p].nhom[0],
@@ -218,11 +221,22 @@ void fill_tags::process_tags(const xcf_reader& XR, xcf_writer& XW,const uint32_t
 				if ( bcf_update_info_float(XW.hts_hdr,rec,tag_pop.c_str(),major?&farr[0]:&farr[1],1)!=0 )
 					vrb.error("Error occurred while updating INFO/" + tag_pop + " at: " + XR.chr + ":" + stb.str(XR.pos));
 			}
+			if (A.mTags & SET_IC)
+			{
+				float finbreeding_f;
+				if ( nref>0 && nalt>0 )
+					calc_inbreeding_f(an, fcnt[0], nhet, &finbreeding_f);
+				else bcf_float_set_missing(finbreeding_f);
+
+				const std::string tag_pop = "IC" + (pop_names[p].empty()? "" : "_" + pop_names[p]);
+				if ( bcf_update_info_float(XW.hts_hdr,rec,tag_pop.c_str(),&finbreeding_f,1)!=0 )
+					vrb.error("Error occurred while updating INFO/" + tag_pop + " at: " + XR.chr + ":" + stb.str(XR.pos));
+			}
 			if (A.mTags & (SET_HWE | SET_ExcHet))
 			{
 				float fhwe = 1, fexc_het=1;
                 if ( nref>0 && nalt>0 )
-                    calc_hwe(nref, nalt, nhet, &fhwe, &fexc_het);
+                    calc_hwe(nref, nalt, nhet, hwe_probs, &fhwe, &fexc_het);
 
 				if (A.mTags & SET_HWE)
 				{
@@ -234,6 +248,17 @@ void fill_tags::process_tags(const xcf_reader& XR, xcf_writer& XW,const uint32_t
 				{
 					const std::string tag_pop = "ExcHet" + (pop_names[p].empty()? "" : "_" + pop_names[p]);
 					if ( bcf_update_info_float(XW.hts_hdr,rec,tag_pop.c_str(),&fexc_het,1)!=0 )
+						vrb.error("Error occurred while updating INFO/" + tag_pop + " at: " + XR.chr + ":" + stb.str(XR.pos));
+				}
+
+				if (A.mTags & SET_HWE)
+				{
+					float fhwe_chisq = 1;
+					if ( nref>0 && nalt>0 )
+						calc_hwe_chisq(an, fcnt[0], nhom0, nhom1, nhet, &fhwe_chisq);
+
+					const std::string tag_pop = "HWE_CHISQ" + (pop_names[p].empty()? "" : "_" + pop_names[p]);
+					if ( bcf_update_info_float(XW.hts_hdr,rec,tag_pop.c_str(),&fhwe_chisq,1)!=0 )
 						vrb.error("Error occurred while updating INFO/" + tag_pop + " at: " + XR.chr + ":" + stb.str(XR.pos));
 				}
 			}
@@ -304,6 +329,34 @@ void fill_tags::process_populations(const xcf_reader& XR, const uint32_t idx_fil
 	vrb.bullet("Npops=" + stb.str(pop_names.size()));
 }
 
+void fill_tags::calc_inbreeding_f(const int an, const int fcnt0, const int nhet, float *inbreeding_f) const
+{
+	const int ng = an/2;
+	const double p = static_cast<double>(fcnt0)/an;
+	const double q = 1.0-p;//1.0 - p;
+	const double exp_het = 2 * p * q * ng;
+	*inbreeding_f = 1.0 - nhet / exp_het;
+}
+
+void fill_tags::calc_hwe_chisq(const int an, const int fcnt0, const int nhom0, const int nhom1, const int nhet, float *p_chi_square_pval) const
+{
+	const int ng = an/2;
+	const double p = static_cast<double>(fcnt0)/an;
+	const double q = 1.0-p;//1.0 - p;
+	const double exp_hom_ref = p * p * ng;
+	const double exp_hom_alt = q * q * ng;
+	const double exp_het = 2 * p * q * ng;
+
+	const double chi_square = std::pow((nhom0/2 - exp_hom_ref), 2) / exp_hom_ref +
+						std::pow((nhet - exp_het), 2) / exp_het +
+						std::pow((nhom1/2 - exp_hom_alt), 2) / exp_hom_alt;
+
+	// Calculating chi-square p-value
+	//double chi_square_pval = pchisq(chi_square,1,0,0);//RMath
+	boost::math::chi_squared_distribution<> dist(1); //1 DF
+	*p_chi_square_pval = 1.0-boost::math::cdf(dist, chi_square);
+}
+
 /*
     Bcftools version, probably almost idential to original
     Wigginton 2005, PMID: 15789306
@@ -313,7 +366,7 @@ void fill_tags::process_populations(const xcf_reader& XR, const uint32_t idx_fil
     nhet .. number of het genotypes, assuming number of genotypes = (nref+nalt)*2
 
 */
-void fill_tags::calc_hwe(int nref, int nalt, int nhet, float *p_hwe, float *p_exc_het)
+void fill_tags::calc_hwe(const int nref, const int nalt, const int nhet, std::vector<double>& hwe_probs, float *p_hwe, float *p_exc_het) const
 {
     int ngt   = (nref+nalt) / 2;
     int nrare = nref < nalt ? nref : nalt;

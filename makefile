@@ -19,6 +19,17 @@ COMMIT_DATE=$(shell git log -1 --format=%cd --date=short)
 CXXFLAG+= -D__COMMIT_ID__=\"$(COMMIT_VERS)\"
 CXXFLAG+= -D__COMMIT_DATE__=\"$(COMMIT_DATE)\"
 
+# RMATH Support [YES/NO]
+ifeq ($(RMATH_SUPPORT),)
+	RMATH_SUPPORT=NO
+endif
+ifeq ($(RMATH_SUPPORT),YES)
+	RMATH_INC=/usr/share/R/include/
+	RMATH_LIB=/usr/lib/libRmath.a
+#	DYN_LIBS+= -lzstd -lhts
+	CXXFLAG+= -D__RMATH_LIB__ -I$(RMATH_INC)
+endif
+
 #DYNAMIC LIBRARIES
 DYN_LIBS=-lz -lpthread -lbz2 -llzma -lcurl -lcrypto -ldeflate
 
