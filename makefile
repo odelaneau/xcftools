@@ -7,11 +7,11 @@ dummy_build_folder_bin := $(shell mkdir -p bin)
 dummy_build_folder_obj := $(shell mkdir -p obj)
 
 #COMPILER & LINKER FLAGS
-#CXXFLAG=-O3 -mavx2 -mfma
-#LDFLAG=-O3
+CXXFLAG=-O3
+LDFLAG=-O3
 
-CXXFLAG=-O0 -g -Wno-ignored-attributes
-LDFLAG=-O0
+#CXXFLAG=-O0 -g -Wno-ignored-attributes
+#LDFLAG=-O0
 
 #COMMIT TRACING
 COMMIT_VERS=$(shell git rev-parse --short HEAD)
