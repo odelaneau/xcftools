@@ -773,7 +773,7 @@ public:
 	{
 		hts_hdr = bcf_hdr_dup(hdr);
 		bcf_hdr_add_sample(hts_hdr, NULL);
-		bcf_hdr_remove(hts_hdr, BCF_HL_FMT, NULL);
+		//bcf_hdr_remove(hts_hdr, BCF_HL_FMT, NULL);
 		if (bcf_hdr_write(hts_fd, hts_hdr) < 0) helper_tools::error("Failing to write BCF/header");
 		if (!hts_fidx.empty())
 			if (bcf_idx_init(hts_fd, hts_hdr, 14, hts_fidx.c_str()))
@@ -906,8 +906,7 @@ public:
 		vsk[2] = seek % MOD30BITS;		//Split addr in 2 30bits integer (max number of sparse genotypes ~1.152922e+18)
 		vsk[3] = nbytes;
 		bcf_update_info_int32(hts_hdr, hts_record, "SEEK", vsk, 4);
-		if (bcf_write1(hts_fd, hts_hdr, hts_record) < 0) helper_tools::error("Failing to write VCF/record for rare variants");
-		bcf_clear1(hts_record);
+		writeRecord(hts_record);
 	}
 	//Write genotypes
 	void writeRecord(uint32_t type, char * buffer, uint32_t nbytes) {

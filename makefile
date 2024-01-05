@@ -60,8 +60,8 @@ olivier: BOOST_LIB_IO=/usr/lib/x86_64-linux-gnu/libboost_iostreams.a
 olivier: BOOST_LIB_PO=/usr/lib/x86_64-linux-gnu/libboost_program_options.a
 olivier: $(BFILE)
 
-static_exe: CXXFLAG=-O2 -mavx2 -mfma -D__COMMIT_ID__=\"$(COMMIT_VERS)\" -D__COMMIT_DATE__=\"$(COMMIT_DATE)\"
-static_exe: LDFLAG=-O2
+static_exe: CXXFLAG=-O3 -mavx2 -mfma -D__COMMIT_ID__=\"$(COMMIT_VERS)\" -D__COMMIT_DATE__=\"$(COMMIT_DATE)\"
+static_exe: LDFLAG=-O3
 static_exe: HTSSRC=/home/srubinac/git
 static_exe: HTSLIB_INC=$(HTSSRC)/htslib_minimal
 static_exe: HTSLIB_LIB=$(HTSSRC)/htslib_minimal/libhts.a

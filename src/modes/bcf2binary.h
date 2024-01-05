@@ -39,7 +39,6 @@ public:
 	int nthreads;
 	int mode;
 	float minmaf;
-	bool drop_info;
 
 
 	//CONSTRUCTORS/DESCTRUCTORS

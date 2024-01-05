@@ -35,7 +35,6 @@ bcf2binary::bcf2binary(string _region, float _minmaf, int _nthreads, int _mode, 
 	nthreads = _nthreads;
 	region = _region;
 	minmaf = _minmaf;
-	drop_info = _drop_info;
 }
 
 bcf2binary::~bcf2binary() {
@@ -74,8 +73,7 @@ void bcf2binary::convert(string finput, string foutput) {
 	bcf1_t* rec = XW.hts_record;
 
 	//Write header
-	if (drop_info) XW.writeHeader(XR.sync_reader->readers[0].header, samples, string("XCFtools ") + string(XCFTLS_VERSION));
-	else XW.writeHeaderClone(XR.sync_reader->readers[0].header,samples, string("XCFtools ") + string(XCFTLS_VERSION));
+	XW.writeHeader(XR.sync_reader->readers[0].header, samples, string("XCFtools ") + string(XCFTLS_VERSION));
 
 	//Allocate input/output buffer
 	int32_t * input_buffer = (int32_t*)malloc(2 * nsamples * sizeof(int32_t));
@@ -145,12 +143,8 @@ void bcf2binary::convert(string finput, string foutput) {
 		}
 
 		//Copy over variant information
-		if (drop_info) XW.writeInfo(XR.chr, XR.pos, XR.ref, XR.alt, XR.rsid, XR.getAC(), XR.getAN());
-		else
-		{
-			XW.hts_record = XR.sync_lines[0];
-			bcf_subset(XW.hts_hdr, XW.hts_record, 0, 0);//to remove format from XR's bcf1_t
-		}
+		XW.writeInfo(XR.chr, XR.pos, XR.ref, XR.alt, XR.rsid, XR.getAC(), XR.getAN());
+
 
 		//Write record
 		if (mode == CONV_BCF_SG && rare)
@@ -171,11 +165,6 @@ void bcf2binary::convert(string finput, string foutput) {
 			if (mode == CONV_BCF_BG || mode == CONV_BCF_BH) vrb.bullet("Number of BCF records processed: N=" + stb.str(n_lines_comm));
 			else vrb.bullet("Number of BCF records processed: Nc=" + stb.str(n_lines_comm) + "/ Nr=" + stb.str(n_lines_rare));
 		}
-	}
-	if (!drop_info)
-	{
-		XW.hts_record = rec;
-		rec = nullptr;
 	}
 
 	if (mode == CONV_BCF_BG || mode == CONV_BCF_BH) vrb.bullet("Number of BCF records processed: N=" + stb.str(n_lines_comm));

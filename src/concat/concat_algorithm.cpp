@@ -60,39 +60,79 @@ void concat::concat_naive()
 	tac.clock();
 	const int nthreads = options["threads"].as < int > ();
 	if (nthreads < 1) vrb.error("Number of threads should be a positive integer.");
+	const bool out_only_bcf = options.count("out-only-bcf");
 	vrb.title("Concatenating files:");
 	std::string fname = options["output"].as < std::string > ();
 	xcf_writer XW(fname, false, nthreads);
-	uint64_t offset_seek = 0;
+	int64_t offset_seek = 0;
+	uint64_t n_tot_sites=0;
 
 	concat_naive_check_headers(XW, fname);
+	vrb.title("Concatenating BCFs:");
     for (size_t i=0; i<filenames.size(); i++)
     {
     	tac.clock();
-    	vrb.print2("  * Concatenating " + filenames[i]);
-    	xcf_reader XR(nthreads);
-    	const int32_t idx_file = XR.addFile(filenames[i]);
-    	const int32_t type = XR.typeFile(idx_file);
-    	if (type != FILE_BINARY) vrb.error("[" + filenames[i] + "] is not a XCF file");
+    	vrb.print2("  * Parsing " + filenames[i]);
+        htsFile *fp = hts_open(filenames[i].c_str(), "r"); if ( !fp ) vrb.error("Failed to open: " + filenames[i]);
+        bcf_hdr_t *hdr = bcf_hdr_read(fp); if ( !hdr ) vrb.error("Failed to parse header: " + filenames[i]);
+        bcf1_t* rec = bcf_init();
 
-    	while (XR.nextRecord())
-    	{
-    		XW.writeInfo(XR.chr, XR.pos, XR.ref, XR.alt, XR.rsid, XR.getAC(), XR.getAN());
-    		XW.writeSeekField(XR.bin_type[0], XR.bin_seek[0] + offset_seek, XR.bin_size[0]);
-    	}
-
-        if (!std::filesystem::exists(stb.remove_extension(filenames[i]) + ".bin")) vrb.error("File does not exists: " + stb.remove_extension(filenames[i]) + ".bin");
-		std::ifstream bin_ifile(stb.remove_extension(filenames[i]) + ".bin", std::ios::in | std::ios::binary);
-		XW.bin_fds << bin_ifile.rdbuf();
-		XW.bin_fds.flush();
-		offset_seek = XW.bin_fds.tellp();
-		bin_ifile.close();
-        vrb.print("\t(" + stb.str(tac.rel_time()*1.0/1000, 2) + "s)");
+        int32_t * vSK = nullptr;
+        int32_t nSK=0;
+    	uint64_t nsites=0;
+    	uint64_t bin_seek;
+    	while (bcf_read(fp,hdr,rec)==0)
+        {
+        	bcf_unpack(rec, BCF_UN_ALL);//BCF_UN_INFO but should be the same here?
+			if (bcf_get_info_int32(hdr, rec, "SEEK", &vSK, &nSK) < 0)
+				vrb.error("Could not fine INFO/SEEK fields");
+			if (nSK != 4) vrb.error("INFO/SEEK field should contain 4 numbers");
+			bin_seek = vSK[1];
+			bin_seek *= MOD30BITS;
+			bin_seek += vSK[2];
+			bin_seek += offset_seek;
+			vSK[1] = bin_seek / MOD30BITS;		//Split addr in 2 30bits integer (max number of sparse genotypes ~1.152922e+18)
+			vSK[2] = bin_seek % MOD30BITS;		//Split addr in 2 30bits integer (max number of sparse genotypes ~1.152922e+18)
+			bcf_update_info_int32(hdr, rec, "SEEK", vSK, 4);
+        	bcf_translate(XW.hts_hdr, hdr,rec);
+			XW.writeRecord(rec);
+			++nsites;
+        }
+        bcf_destroy(rec);
+        bcf_hdr_destroy(hdr);
+        hts_close(fp);
+        n_tot_sites += nsites;
+        if (vSK) offset_seek = bin_seek+vSK[3];
+        vrb.print("\t[#ns=" + stb.str(nsites) + "]\t(" + stb.str(tac.rel_time()*1.0/1000, 2) + "s)");
     }
-    XW.bin_fds.close();
+    vrb.print("BCF writing completed");
+    if (!out_only_bcf)
+    {
+        vrb.title("Writing data");
+
+    	if (!std::filesystem::exists(stb.remove_extension(filenames[0]) + ".fam")) vrb.error("File does not exists: " + stb.remove_extension(filenames[0]) + ".fam");
+    	std::ifstream fam_ifile(stb.remove_extension(filenames[0]) + ".fam");
+    	std::ofstream fam_ofile(stb.remove_extension(fname) + ".fam");
+    	fam_ofile << fam_ifile.rdbuf();
+    	fam_ofile.close();
+    	fam_ifile.close();
+
+        for (size_t i=0; i<filenames.size(); i++)
+        {
+        	tac.clock();
+    		vrb.print2("  * Parsing " + filenames[i] + ".bin");
+            if (!std::filesystem::exists(stb.remove_extension(filenames[i]) + ".bin")) vrb.error("File does not exist: " + stb.remove_extension(filenames[i]) + ".bin");
+            std::ifstream bin_ifile(stb.remove_extension(filenames[i]) + ".bin", std::ios::in | std::ios::binary);
+            if (!bin_ifile.is_open()) vrb.error("Failed to open file: " + stb.remove_extension(filenames[i]) + ".bin");
+    		XW.bin_fds << bin_ifile.rdbuf();
+    		bin_ifile.close();
+            vrb.print("\t(" + stb.str(tac.rel_time()*1.0/1000, 2) + "s)");
+        }
+        XW.bin_fds.close();
+    }
     XW.close();
 
-    vrb.print("Writing completed.");
+    vrb.print("Writing data completed \t[#sites = " + stb.str(n_tot_sites) + "]");
 }
 
 // This is a C++ friendly modification of vcfconcat.c from bcftools.
@@ -103,7 +143,7 @@ void concat::concat_naive()
 void concat::concat_naive_check_headers(xcf_writer& XW, const std::string& fname)
 {
 	assert(nfiles>0 && filenames.size()>0);
-    vrb.print2("  * Checking the headers of " + stb.str(nfiles) + " files");
+    vrb.print2("  * Checking the headers of " + stb.str(nfiles)+ " files");
     bcf_hdr_t *hdr0 = NULL;
     bcf_hdr_t * out_hdr = NULL;
     int i,j;
@@ -141,17 +181,9 @@ void concat::concat_naive_check_headers(xcf_writer& XW, const std::string& fname
     if ( hdr0 ) bcf_hdr_destroy(hdr0);
     vrb.print(". Done, the headers are compatible.");
 
-    vrb.print2("  * Writing header and .fam file");
     i=0;
     XW.writeHeader(out_hdr);
-	if (!std::filesystem::exists(stb.remove_extension(filenames[i]) + ".fam")) vrb.error("File does not exists: " + stb.remove_extension(filenames[i]) + ".fam");
-	std::ifstream fam_ifile(stb.remove_extension(filenames[i]) + ".fam");
-	std::ofstream fam_ofile(stb.remove_extension(fname) + ".fam");
-	fam_ofile << fam_ifile.rdbuf();
-	fam_ofile.close();
-	fam_ifile.close();
     if (out_hdr) bcf_hdr_destroy(out_hdr);
-    vrb.print(". Done, files written. Proceeding with concatenation.");
 }
 
 // This is a C++ friendly modification of vcfconcat.c from bcftools.

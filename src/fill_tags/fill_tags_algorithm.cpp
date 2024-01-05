@@ -68,6 +68,7 @@ void fill_tags::run_algorithm()
 	{
 		parse_genotypes(XR,idx_file);
 		process_tags(XR, XW, idx_file, hwe_probs);
+		bcf_translate(XW.hts_hdr, XR.sync_reader->readers[idx_file].header, XR.sync_lines[idx_file]);
 	    XW.writeRecord(XR.sync_lines[idx_file]);
 
 		if (++n_lines % 10000 == 0) vrb.bullet("Number of XCF records processed: N = " + stb.str(n_lines));

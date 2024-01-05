@@ -48,6 +48,7 @@ void concat::declare_options() {
 	bpo::options_description opt_output ("Output files");
 	opt_output.add_options()
 			("output,o", bpo::value< std::string >(), "Output ligated file in XCF format")
+			("out-only-bcf","Outputs BCF file only (only available in naive mode)")
 			("log", bpo::value< std::string >(), "Log file");
 
 	descriptions.add(opt_base).add(opt_input).add(opt_par).add(opt_output);
@@ -99,10 +100,14 @@ void concat::verbose_files() {
 
 void concat::verbose_options() {
 	std::array<std::string,2> no_yes = {"NO","YES"};
+	bool out_only_bcf = options.count("out-only-bcf");
 
 	vrb.title("Parameters: ");
 	if (options.count("naive"))
+	{
 		vrb.bullet("Mode     : Concat (naive mode)");
+
+	}
 	else if (options.count("ligate"))
 	{
 		vrb.bullet("Mode     : Ligate");
@@ -112,6 +117,11 @@ void concat::verbose_options() {
 	{
 		vrb.error("Only concat --naive or --ligate are implemented at the moment. sorry :-/");
 	}
+	if (options.count("out-only-bcf") && options.count("ligate")) vrb.error("Out-only-bcf option is only available in naive mode");
+
+	std::string out_type = out_only_bcf ? "Only BCF" : "Full XCF";
+	vrb.bullet("Output         : [" + out_type + "]\t[" + options["output"].as < std::string > () + "]");
+
 	vrb.bullet("Seed     : " + stb.str(options["seed"].as < int > ()));
 	vrb.bullet("Threads  : " + stb.str(options["threads"].as < int > ()) + " threads");
 
