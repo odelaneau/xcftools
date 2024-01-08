@@ -54,7 +54,7 @@ void fill_tags::run_algorithm()
 	const int32_t typef = XR.typeFile(idx_file);
 	if (typef != FILE_BINARY) vrb.error("[" + A.mInputFilename + "] is not a XCF file");
 	nsamples = XR.ind_names[idx_file].size();
-	xcf_writer XW(A.mOutputFilename, false, A.mNumThreads);
+	xcf_writer XW(A.mOutputFilename, false, A.mNumThreads, false);
 	process_populations(XR,idx_file);
 	prepare_output(XR,XW,idx_file);
 
@@ -71,7 +71,7 @@ void fill_tags::run_algorithm()
 		bcf_translate(XW.hts_hdr, XR.sync_reader->readers[idx_file].header, XR.sync_lines[idx_file]);
 	    XW.writeRecord(XR.sync_lines[idx_file]);
 
-		if (++n_lines % 10000 == 0) vrb.bullet("Number of XCF records processed: N = " + stb.str(n_lines));
+		if (++n_lines % 100000 == 0) vrb.bullet("Number of XCF records processed: N = " + stb.str(n_lines));
 	}
 	vrb.bullet("Number of XCF variants processed: N = " + stb.str(n_lines));
 	XR.close();
