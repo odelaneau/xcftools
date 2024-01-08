@@ -57,17 +57,17 @@ void concat::run() {
 
 void concat::concat_naive()
 {
-	tac.clock();
 	const int nthreads = options["threads"].as < int > ();
 	if (nthreads < 1) vrb.error("Number of threads should be a positive integer.");
 	const bool out_only_bcf = options.count("out-only-bcf");
-	vrb.title("Concatenating files:");
 	std::string fname = options["output"].as < std::string > ();
-	xcf_writer XW(fname, false, nthreads);
+	xcf_writer XW(fname, false, nthreads, !out_only_bcf);
 	int64_t offset_seek = 0;
 	uint64_t n_tot_sites=0;
 
 	concat_naive_check_headers(XW, fname);
+
+	tac.clock();
 	vrb.title("Concatenating BCFs:");
     for (size_t i=0; i<filenames.size(); i++)
     {
@@ -142,6 +142,8 @@ void concat::concat_naive()
 // Copyright (C) 2023 Olivier Delaneau
 void concat::concat_naive_check_headers(xcf_writer& XW, const std::string& fname)
 {
+	tac.clock();
+	vrb.title("Checking BCF headers:");
 	assert(nfiles>0 && filenames.size()>0);
     vrb.print2("  * Checking the headers of " + stb.str(nfiles)+ " files");
     bcf_hdr_t *hdr0 = NULL;
@@ -179,11 +181,13 @@ void concat::concat_naive_check_headers(xcf_writer& XW, const std::string& fname
         bcf_hdr_destroy(hdr);
     }
     if ( hdr0 ) bcf_hdr_destroy(hdr0);
-    vrb.print(". Done, the headers are compatible.");
 
     i=0;
     XW.writeHeader(out_hdr);
     if (out_hdr) bcf_hdr_destroy(out_hdr);
+
+    vrb.print(". Done, they are compatible. \t(" + stb.str(tac.rel_time()*1.0/1000, 2) + "s)");;
+
 }
 
 // This is a C++ friendly modification of vcfconcat.c from bcftools.

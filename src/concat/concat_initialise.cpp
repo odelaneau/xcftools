@@ -38,13 +38,16 @@ void concat::read_files_and_initialise() {
 	while (getline(fd, buffer))
 	{
 		filenames.push_back(buffer);
-		xcf_reader XR(1);
-		int32_t idx_file = XR.addFile(buffer);
+		if (!options.count("naive"))
+		{
+			xcf_reader XR(1);
+			int32_t idx_file = XR.addFile(buffer);
 
-		//Get file type
-		int32_t type = XR.typeFile(idx_file);
-		if (type != FILE_BINARY) vrb.error("[" + buffer + "] is not a XCF file");
-		XR.close();
+			//Get file type
+			int32_t type = XR.typeFile(idx_file);
+			if (type != FILE_BINARY) vrb.error("[" + buffer + "] is not a XCF file");
+			XR.close();
+		}
 	}
 	vrb.bullet("#files = " + stb.str(filenames.size()));
 	if (filenames.size() == 0) vrb.error("No filenames in input file.");

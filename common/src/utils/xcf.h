@@ -710,7 +710,7 @@ public:
 	uint32_t bin_size;							//Amount of Binary records in bytes		//Integer 4 in INFO/SEEK field
 
 	//CONSTRUCTOR
-	xcf_writer(std::string _hts_fname, bool _hts_genotypes, uint32_t _nthreads) : hts_hdr(nullptr) , ind_number(0) {
+	xcf_writer(std::string _hts_fname, bool _hts_genotypes, uint32_t _nthreads, bool write_genotypes=true) : hts_hdr(nullptr) , ind_number(0) {
 		std::string oformat;
 		hts_fname = _hts_fname;
 
@@ -744,7 +744,7 @@ public:
 	    else hts_fidx = "";
 		if (nthreads > 1) hts_set_threads(hts_fd, nthreads);
 
-		if (!hts_genotypes) {
+		if (!hts_genotypes && write_genotypes) {
 			//BINARY
 			std::string bfname = helper_tools::get_name_from_vcf(hts_fname) + ".bin";
 			bin_fds.open(bfname.c_str(), std::ios::out | std::ios::binary);
