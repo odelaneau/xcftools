@@ -54,8 +54,9 @@ void fill_tags::run_algorithm()
 	const int32_t typef = XR.typeFile(idx_file);
 	if (typef != FILE_BINARY) vrb.error("[" + A.mInputFilename + "] is not a XCF file");
 	nsamples = XR.ind_names[idx_file].size();
-	xcf_writer XW(A.mOutputFilename, false, A.mNumThreads, false);
+	process_families(XR, idx_file);
 	process_populations(XR,idx_file);
+	xcf_writer XW(A.mOutputFilename, false, A.mNumThreads, false);
 	prepare_output(XR,XW,idx_file);
 
 	vrb.title("[Fill-tags] Processing variants");
@@ -74,8 +75,89 @@ void fill_tags::run_algorithm()
 		if (++n_lines % 100000 == 0) vrb.bullet("Number of XCF records processed: N = " + stb.str(n_lines));
 	}
 	vrb.bullet("Number of XCF variants processed: N = " + stb.str(n_lines));
+
+	finalize_tags(XR,idx_file);
 	XR.close();
 	XW.close();
+}
+
+void fill_tags::process_families(xcf_reader& XR, const uint32_t idx_file)
+{
+	samples2fam = std::vector<std::vector< size_t >>(nsamples);
+	if (A.mTags & (SET_MENDEL))
+	{
+		mendel_errors = std::vector < int > (nsamples, 0);
+		mendel_totals = std::vector < int > (nsamples, 0);
+
+		std::map < std::string , int > mapF2S;
+	    for (int i = 0 ; i < nsamples ; i ++)
+	    {
+	    	if (XR.ind_names[idx_file][i].empty() || XR.ind_names[idx_file][i]=="NA")
+	    		continue;
+
+			mapF2S.insert(std::pair < std::string, int > (XR.ind_names[idx_file][i], i));
+			if (XR.ind_fathers[idx_file][i]!="NA" || XR.ind_mothers[idx_file][i]!="NA")
+			{
+				fam_trio.push_back(i);
+				samples2fam[i].push_back(fam_trio.size()-1);
+			}
+	    }
+
+	    unsigned int ntrios = 0, nduosF = 0, nduosM = 0;
+	    for (int f = 0 ; f < fam_trio.size() ; f ++)
+	    {
+	    	const int kid_i = fam_trio[f].id[0];
+	    	assert(kid_i < nsamples);
+	    	const std::string fth =  XR.ind_fathers[idx_file][kid_i];
+	    	const std::string mth =  XR.ind_mothers[idx_file][kid_i];
+
+			std::map < std::string , int > ::iterator itF =
+					(fth.empty() || fth=="NA") ? mapF2S.end() : mapF2S.find(fth);
+			std::map < std::string , int > ::iterator itM =
+					(mth.empty() || mth=="NA") ? mapF2S.end() : mapF2S.find(mth);
+			if (itF != mapF2S.end() && itM != mapF2S.end()) {
+				fam_trio[f].id[1]=itF->second;
+				samples2fam[itF->second].push_back(f);
+				fam_trio[f].id[2]=itM->second;
+				samples2fam[itM->second].push_back(f);
+				ntrios++;
+			}
+			else if (itF != mapF2S.end() && itM == mapF2S.end()) {
+				fam_trio[f].id[1]=itF->second;
+				samples2fam[itF->second].push_back(f);
+				nduosF++;
+			}
+			else if (itF == mapF2S.end() && itM != mapF2S.end()) {
+				fam_trio[f].id[2]=itM->second;
+				samples2fam[itM->second].push_back(f);
+				nduosM++;
+			}
+			else
+			{
+				//can be smarter, but better safe for now.
+				vrb.error("Sample: " + XR.ind_names[idx_file][kid_i] + " has associate father and/or mother that are not present in the dataset. Please set them to NA.");
+			}
+	    }
+	    vrb.bullet("Pedigree: #trios = " + stb.str(ntrios) + " | #duos_paternal = " + stb.str(nduosF) + " | #duos_maternal = " + stb.str(nduosM));
+	}
+	else
+	{
+	    vrb.bullet("Pedigree not loaded (no Mendel error calculation)");
+	}
+}
+
+void fill_tags::finalize_tags(xcf_reader& XR, const uint32_t idx_file)
+{
+	if (A.mTags & (SET_MENDEL))
+	{
+	    //Mendel per sample summary
+		vrb.title("Writing Mendel per sample summary in [" + A.mOutputFilename + ".ind.txt.gz]");
+		output_file fds(A.mOutputFilename + ".ind.txt.gz");
+		for (int kidx = 0 ; kidx < XR.ind_names[idx_file].size() ; kidx++) {
+			fds << XR.ind_names[idx_file][kidx] << "\t" << XR.ind_fathers[idx_file][kidx] << "\t" << XR.ind_mothers[idx_file][kidx] << "\t" << mendel_errors[kidx] << "\t" << mendel_totals[kidx] << std::endl;
+		}
+		fds.close();
+	}
 }
 
 void fill_tags::parse_genotypes(xcf_reader& XR, const uint32_t idx_file)
@@ -96,6 +178,8 @@ void fill_tags::parse_genotypes(xcf_reader& XR, const uint32_t idx_file)
 			const bool a0 = binary_bit_buf.get(2*i+0);
 			const bool a1 = binary_bit_buf.get(2*i+1);
 			const bool missing = (a0 == true && a1 == false);
+			for (auto f=0; f<samples2fam[i].size();++f)
+				fam_trio[samples2fam[i][f]].set_gt(i,missing?-1:a0+a1);
 			for (auto p=0; p<samples2pop[i].size(); ++p)
 				missing? set_missing(samples2pop[i][p]) : set_counts(samples2pop[i][p], a0, a1);
 			//no missing possible? otherwise is_half
@@ -109,6 +193,8 @@ void fill_tags::parse_genotypes(xcf_reader& XR, const uint32_t idx_file)
 		{
 			const bool a0 = binary_bit_buf.get(2*i+0);
 			const bool a1 = binary_bit_buf.get(2*i+1);
+			for (auto f=0; f<samples2fam[i].size();++f)
+				fam_trio[samples2fam[i][f]].set_gt(i,a0+a1);
 			for (auto p=0; p<samples2pop[i].size(); ++p)
 				set_counts(samples2pop[i][p], a0,a1);
 			//no missing possible? otherwise is_half
@@ -119,9 +205,13 @@ void fill_tags::parse_genotypes(xcf_reader& XR, const uint32_t idx_file)
 		sparse_int_buf.resize(XR.bin_size[idx_file]/ sizeof(int32_t));
 		XR.readRecord(idx_file, reinterpret_cast< char* > (sparse_int_buf.data()));
 		const bool major = (XR.getAF(idx_file)>0.5f);
+		for (auto f=0; f<fam_trio.size();++f) fam_trio[f].reset((int8_t)major*2);
+
 		for(uint32_t r = 0 ; r < sparse_int_buf.size() ; r++)
 		{
 			sparse_genotype rg(sparse_int_buf[r]);
+			for (auto f=0; f<samples2fam[rg.idx].size();++f)
+				fam_trio[samples2fam[rg.idx][f]].set_gt(rg.idx,rg.mis?-1:rg.al0+rg.al1);
 			for (auto p=0; p<samples2pop[rg.idx].size(); ++p)
 				rg.mis ? set_missing(samples2pop[rg.idx][p]) : set_counts(samples2pop[rg.idx][p], rg.al0,rg.al1);
 		}
@@ -134,14 +224,18 @@ void fill_tags::parse_genotypes(xcf_reader& XR, const uint32_t idx_file)
 		if (sparse_int_buf.size()==0) vrb.error("buffer resize.");
 		XR.readRecord(idx_file, reinterpret_cast< char* > (sparse_int_buf.data()));
 		const bool major = (XR.getAF()>0.5f);
+		for (auto f=0; f<fam_trio.size();++f) fam_trio[f].reset((int8_t)major*2);
 		for(uint32_t r = 0 ; r < sparse_int_buf.size() ; r++)
 		{
 			const int32_t hap_idx = sparse_int_buf[r];
 			const int32_t ind_idx = hap_idx/2;
-			bool is_a1_minor=(hap_idx%2==0 && r<sparse_int_buf.size()-1 && sparse_int_buf[r+1]==hap_idx+1);
+			const bool a0 = !major;
+			const bool a1=(hap_idx%2==0 && r<sparse_int_buf.size()-1 && sparse_int_buf[r+1]==hap_idx+1)? a0 : major;
+			for (auto f=0; f<samples2fam[ind_idx].size();++f)
+				fam_trio[samples2fam[ind_idx][f]].set_gt(ind_idx,a0+a1);
 			for (auto p=0; p<samples2pop[ind_idx].size(); ++p)
-				set_counts(samples2pop[ind_idx][p], !major, is_a1_minor);
-			if (is_a1_minor) ++r;
+				set_counts(samples2pop[ind_idx][p], a0, a1);
+			if (a1==a0) ++r;
 		}
 		for (auto p=0; p<pop_names.size(); ++p)
 			set_sparse(p, major);
@@ -266,6 +360,26 @@ void fill_tags::process_tags(const xcf_reader& XR, xcf_writer& XW,const uint32_t
 		}
 	}
 
+	if (A.mTags & (SET_MENDEL))
+	{
+		int32_t n_err=0, n_tot=0;
+		float fmendel=0;
+		calc_mendel_err(n_err,n_tot, major);
+		if (n_tot>0 && n_err<=n_tot)
+			fmendel=(float)n_err/n_tot;
+
+		std::string tag;
+		tag = "MC";
+		if ( bcf_update_info_int32(XW.hts_hdr,rec,tag.c_str(),&n_err,1)!=0 )
+			vrb.error("Error occurred while updating INFO/" + tag + " at: " + XR.chr + ":" + stb.str(XR.pos));
+		tag = "MN";
+		if ( bcf_update_info_int32(XW.hts_hdr,rec,tag.c_str(),&n_tot,1)!=0 )
+			vrb.error("Error occurred while updating INFO/" + tag + " at: " + XR.chr + ":" + stb.str(XR.pos));
+		tag = "MF";
+		if ( bcf_update_info_float(XW.hts_hdr,rec,tag.c_str(),&fmendel,1)!=0 )
+			vrb.error("Error occurred while updating INFO/" + tag + " at: " + XR.chr + ":" + stb.str(XR.pos));
+	}
+
     if ( A.mTags & SET_END )
     {
         const int32_t end = XR.sync_lines[0]->pos + XR.sync_lines[0]->rlen;
@@ -294,42 +408,58 @@ void fill_tags::process_populations(const xcf_reader& XR, const uint32_t idx_fil
 {
     samples2pop = std::vector<std::vector<int>>(nsamples);//all populations for each samples
 
-    for (auto i=0; i<nsamples; ++i)
+    if (A.mTags & (SET_NS | SET_AN | SET_AC | SET_AC_Hom | SET_AC_Het | SET_AF | SET_MAF | SET_HWE | SET_ExcHet))
     {
-    	if (!XR.ind_pops[idx_file][i].empty() && XR.ind_pops[idx_file][i] != "NA")
+        for (auto i=0; i<nsamples; ++i)
+        {
+        	if (!XR.ind_pops[idx_file][i].empty() && XR.ind_pops[idx_file][i] != "NA")
+        	{
+        		std::vector<std::string> pops;
+        		stb.split(XR.ind_pops[idx_file][i],pops,",");
+        		for (const auto& pop : pops)
+        		{
+        			int curr_pop_id = 0;
+                    auto it = std::find(pop_names.begin(), pop_names.end(), pop);
+                    if (it == pop_names.end())
+                    {
+                        pop_names.push_back(pop);
+                        pop2samples.push_back(std::vector<uint32_t>());
+                        curr_pop_id = pop_names.size()-1;
+                    }
+                    else curr_pop_id = std::distance(pop_names.begin(), it);
+        	        pop2samples[curr_pop_id].push_back(i);
+        	        samples2pop[i].push_back(curr_pop_id);
+        		}
+        	}
+        }
+        //add special "ALL" population
+    	const size_t curr_pop_id = pop_names.size();
+    	pop_names.push_back("");
+    	pop2samples.push_back(std::vector<uint32_t>());
+    	for (auto i=0; i<nsamples; ++i)
     	{
-    		std::vector<std::string> pops;
-    		stb.split(XR.ind_pops[idx_file][i],pops,",");
-    		for (const auto& pop : pops)
-    		{
-    			int curr_pop_id = 0;
-                auto it = std::find(pop_names.begin(), pop_names.end(), pop);
-                if (it == pop_names.end())
-                {
-                    pop_names.push_back(pop);
-                    pop2samples.push_back(std::vector<uint32_t>());
-                    curr_pop_id = pop_names.size()-1;
-                }
-                else curr_pop_id = std::distance(pop_names.begin(), it);
-    	        pop2samples[curr_pop_id].push_back(i);
-    	        samples2pop[i].push_back(curr_pop_id);
-    		}
+            pop2samples[curr_pop_id].push_back(i);
+            samples2pop[i].push_back(curr_pop_id);
     	}
+    	pop_counts = std::vector<AlleleCount>(pop_names.size());
     }
-    //add special "ALL" population
-	const size_t curr_pop_id = pop_names.size();
-	pop_names.push_back("");
-	pop2samples.push_back(std::vector<uint32_t>());
-	for (auto i=0; i<nsamples; ++i)
-	{
-        pop2samples[curr_pop_id].push_back(i);
-        samples2pop[i].push_back(curr_pop_id);
-	}
-	pop_counts = std::vector<AlleleCount>(pop_names.size());
-
-	vrb.bullet("Npops=" + stb.str(pop_names.size()));
+	if (pop_names.size()) vrb.bullet("Npops=" + stb.str(pop_names.size()));
+	else vrb.bullet("Populations not loaded (no population specific calculations)");
 }
 
+void fill_tags::calc_mendel_err(int& n_err, int& n_tot, const bool major)
+{
+	n_err=0; n_tot=0;
+	for (int f = 0 ; f < fam_trio.size() ; f ++)
+	{
+		const int err = fam_trio[f].checkMendelError();
+		const int tot = fam_trio[f].checkMendelTotal(major);
+		n_err+=err;
+		n_tot+=tot;
+		mendel_errors[fam_trio[f].id[0]]+=err;
+		mendel_totals[fam_trio[f].id[0]]+=tot;
+	}
+}
 void fill_tags::calc_inbreeding_f(const int an, const int fcnt0, const int nhet, float *inbreeding_f) const
 {
 	const int ng = an/2;

@@ -16,6 +16,7 @@
 #define SET_END     (1<<11)
 #define SET_TYPE    (1<<12)
 #define SET_IC      (1<<13)
+#define SET_MENDEL  (1<<14)
 
 static std::unordered_map<std::string, uint32_t> tagMap = {
 	{"AN", SET_AN},
@@ -41,7 +42,9 @@ static std::unordered_map<std::string, uint32_t> tagMap = {
 	{"TYPE", SET_TYPE},
 	{"INFO/TYPE", SET_TYPE},
 	{"IC", SET_IC},
-	{"INFO/IC", SET_IC}
+	{"INFO/IC", SET_IC},
+	{"MENDEL", SET_MENDEL},
+	{"INFO/MENDEL", SET_MENDEL}
 
 	//no VAF, VAF1 and FMISSING
 };
@@ -58,6 +61,9 @@ static std::string tag_str_description =
 		  "INFO/HWE_CHISQ Number:A  Type:Float    ..  Chi-squared Hardy-Weinberg Equilibrium P-value (PMID:15789306); 1=good, 0=bad\n"
 		  "INFO/IC        Number:A  Type:Float    ..  Inbreeding coefficient (based on Hardy-Weinberg Equilibrium heterozygosity)\n"
 		  "INFO/MAF       Number:1  Type:Float    ..  Frequency of the second most common allele\n"
+		  "INFO/MC        Number:1  Type:Integer  ..  Number of Mendel errors in duos/trios"
+		  "INFO/MN        Number:1  Type:Integer  ..  Number of total non-major triplets/duplets in trios/duos"
+		  "INFO/MF        Number:1  Type:Float    ..  Mendel error rate (MC/MN)"
 		  "INFO/NS        Number:1  Type:Integer  ..  Number of samples with data\n"
 		  "INFO/TYPE      Number:.  Type:String   ..  The record type (REF,SNP,MNP,INDEL,etc)\n";
 

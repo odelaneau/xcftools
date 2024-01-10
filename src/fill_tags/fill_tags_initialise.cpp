@@ -50,6 +50,12 @@ void fill_tags::hdr_append(bcf_hdr_t* out_hdr)
         if ( A.mTags & SET_HWE ) bcf_hdr_printf(out_hdr, std::string("##INFO=<ID=HWE_CHISQ" + s0 + ",Number=A,Type=Float,Description=\"Chi-squared Hardy-Weinberg Equilibrium P-value" + s1 + s2 + "\">").c_str());
         if ( A.mTags & SET_ExcHet ) bcf_hdr_printf(out_hdr, std::string("##INFO=<ID=ExcHet" + s0 + ",Number=A,Type=Float,Description=\"Excess of heterozygosity P-value" + s1 + s2 + "; 1=good, 0=bad\">").c_str());
     }
+    if ( A.mTags & SET_MENDEL )
+    {
+    	bcf_hdr_printf(out_hdr, "##INFO=<ID=MC,Number=1,Type=Integer,Description=\"Number of Mendel errors in duos/trios\">");
+    	bcf_hdr_printf(out_hdr, "##INFO=<ID=MN,Number=1,Type=Integer,Description=\"Number of total non-major triplets/duplets in trios/duos\">");
+    	bcf_hdr_printf(out_hdr, "##INFO=<ID=MF,Number=1,Type=Float,Description=\"Mendel error rate (MC/MN)\">");
+    }
     if ( A.mTags & SET_END ) bcf_hdr_printf(out_hdr, "##INFO=<ID=END,Number=1,Type=Integer,Description=\"End position of the variant\">");
     if ( A.mTags & SET_TYPE ) bcf_hdr_printf(out_hdr, "##INFO=<ID=TYPE,Number=.,Type=String,Description=\"Variant type\">");
 }
