@@ -81,72 +81,6 @@ void fill_tags::run_algorithm()
 	XW.close();
 }
 
-void fill_tags::process_families(xcf_reader& XR, const uint32_t idx_file)
-{
-	samples2fam = std::vector<std::vector< size_t >>(nsamples);
-	if (A.mTags & (SET_MENDEL))
-	{
-		mendel_errors = std::vector < int > (nsamples, 0);
-		mendel_totals_fam_minor = std::vector < int > (nsamples, 0);
-		mendel_totals_fam_all = std::vector < int > (nsamples, 0);
-
-		std::map < std::string , int > mapF2S;
-	    for (int i = 0 ; i < nsamples ; i ++)
-	    {
-	    	if (XR.ind_names[idx_file][i].empty() || XR.ind_names[idx_file][i]=="NA")
-	    		continue;
-
-			mapF2S.insert(std::pair < std::string, int > (XR.ind_names[idx_file][i], i));
-			if (XR.ind_fathers[idx_file][i]!="NA" || XR.ind_mothers[idx_file][i]!="NA")
-			{
-				fam_trio.push_back(i);
-				samples2fam[i].push_back(fam_trio.size()-1);
-			}
-	    }
-
-	    unsigned int ntrios = 0, nduosF = 0, nduosM = 0;
-	    for (int f = 0 ; f < fam_trio.size() ; f ++)
-	    {
-	    	const int kid_i = fam_trio[f].id[0];
-	    	assert(kid_i < nsamples);
-	    	const std::string fth =  XR.ind_fathers[idx_file][kid_i];
-	    	const std::string mth =  XR.ind_mothers[idx_file][kid_i];
-
-			std::map < std::string , int > ::iterator itF =
-					(fth.empty() || fth=="NA") ? mapF2S.end() : mapF2S.find(fth);
-			std::map < std::string , int > ::iterator itM =
-					(mth.empty() || mth=="NA") ? mapF2S.end() : mapF2S.find(mth);
-			if (itF != mapF2S.end() && itM != mapF2S.end()) {
-				fam_trio[f].id[1]=itF->second;
-				samples2fam[itF->second].push_back(f);
-				fam_trio[f].id[2]=itM->second;
-				samples2fam[itM->second].push_back(f);
-				ntrios++;
-			}
-			else if (itF != mapF2S.end() && itM == mapF2S.end()) {
-				fam_trio[f].id[1]=itF->second;
-				samples2fam[itF->second].push_back(f);
-				nduosF++;
-			}
-			else if (itF == mapF2S.end() && itM != mapF2S.end()) {
-				fam_trio[f].id[2]=itM->second;
-				samples2fam[itM->second].push_back(f);
-				nduosM++;
-			}
-			else
-			{
-				//can be smarter, but better safe for now.
-				vrb.error("Sample: " + XR.ind_names[idx_file][kid_i] + " has associate father and/or mother that are not present in the dataset. Please set them to NA.");
-			}
-	    }
-	    vrb.bullet("Pedigree: #trios = " + stb.str(ntrios) + " | #duos_paternal = " + stb.str(nduosF) + " | #duos_maternal = " + stb.str(nduosM));
-	}
-	else
-	{
-	    vrb.bullet("Pedigree not loaded (no Mendel error calculation)");
-	}
-}
-
 void fill_tags::finalize_tags(xcf_reader& XR, const uint32_t idx_file)
 {
 	if (A.mTags & (SET_MENDEL))
@@ -154,7 +88,7 @@ void fill_tags::finalize_tags(xcf_reader& XR, const uint32_t idx_file)
 		const std::string bfname = helper_tools::get_name_from_vcf(A.mOutputFilename) + ".mendel.ind.txt.gz";
 	    //Mendel per sample summary
 		vrb.title("Writing Mendel per sample summary in [" + bfname + "]");
-		output_file fds(bfname);
+		output_file fds(bfname + ".mendel.ind.txt.gz");
 		for (int kidx = 0 ; kidx < XR.ind_names[idx_file].size() ; kidx++)
 		{
 			fds << 	XR.ind_names[idx_file][kidx] << "\t" <<
@@ -414,6 +348,74 @@ void fill_tags::process_tags(const xcf_reader& XR, xcf_writer& XW,const uint32_t
 		if ( bcf_update_info_string(XW.hts_hdr,rec,"TYPE",str_type.c_str())!=0 )
 			vrb.error("Error occurred while updating INFO/TYPE at:  " + XR.chr + ":" + stb.str(XR.pos));
     }
+}
+
+void fill_tags::process_families(xcf_reader& XR, const uint32_t idx_file)
+{
+	samples2fam = std::vector<std::vector< size_t >>(nsamples);
+	std::vector<int> putative_fam_id;
+	if (A.mTags & (SET_MENDEL))
+	{
+		mendel_errors = std::vector < int > (nsamples, 0);
+		mendel_totals_fam_minor = std::vector < int > (nsamples, 0);
+		mendel_totals_fam_all = std::vector < int > (nsamples, 0);
+
+		std::map < std::string , int > mapF2S;
+	    for (int i = 0 ; i < nsamples ; i ++)
+	    {
+	    	if (XR.ind_names[idx_file][i].empty() || XR.ind_names[idx_file][i]=="NA")
+	    		continue;
+
+			mapF2S.insert(std::pair < std::string, int > (XR.ind_names[idx_file][i], i));
+			if (XR.ind_fathers[idx_file][i]!="NA" || XR.ind_mothers[idx_file][i]!="NA")
+			{
+				putative_fam_id.push_back(i);
+			}
+	    }
+
+	    unsigned int ntrios = 0, nduosF = 0, nduosM = 0;
+	    for (int f = 0 ; f < putative_fam_id.size() ; f ++)
+	    {
+	    	const int kid_i = putative_fam_id[f];
+	    	assert(kid_i < nsamples);
+	    	const std::string fth =  XR.ind_fathers[idx_file][kid_i];
+	    	const std::string mth =  XR.ind_mothers[idx_file][kid_i];
+
+			std::map < std::string , int > ::iterator itF =
+					(fth.empty() || fth=="NA") ? mapF2S.end() : mapF2S.find(fth);
+			std::map < std::string , int > ::iterator itM =
+					(mth.empty() || mth=="NA") ? mapF2S.end() : mapF2S.find(mth);
+			if (itF != mapF2S.end() && itM != mapF2S.end()) {
+				fam_trio.push_back(MendelTrio(kid_i,itF->second,itM->second));
+				samples2fam[kid_i].push_back(fam_trio.size()-1);
+				samples2fam[itF->second].push_back(fam_trio.size()-1);
+				samples2fam[itM->second].push_back(fam_trio.size()-1);
+				ntrios++;
+			}
+			else if (itF != mapF2S.end() && itM == mapF2S.end()) {
+				fam_trio.push_back(MendelTrio(kid_i,itF->second,-1));
+				samples2fam[kid_i].push_back(fam_trio.size()-1);
+				samples2fam[itF->second].push_back(fam_trio.size()-1);
+				nduosF++;
+			}
+			else if (itF == mapF2S.end() && itM != mapF2S.end()) {
+				fam_trio.push_back(MendelTrio(kid_i,-1,itM->second));
+				samples2fam[kid_i].push_back(fam_trio.size()-1);
+				samples2fam[itM->second].push_back(fam_trio.size()-1);
+				nduosM++;
+			}
+			//else
+			//{
+				//can be smarter, but better safe for now.
+				//vrb.error("Sample: " + XR.ind_names[idx_file][kid_i] + " has associate father and/or mother that are not present in the dataset. Please set them to NA.");
+			//}
+	    }
+	    vrb.bullet("Pedigree: #trios = " + stb.str(ntrios) + " | #duos_paternal = " + stb.str(nduosF) + " | #duos_maternal = " + stb.str(nduosM));
+	}
+	else
+	{
+	    vrb.bullet("Pedigree not loaded (no Mendel error calculation)");
+	}
 }
 
 void fill_tags::process_populations(const xcf_reader& XR, const uint32_t idx_file)

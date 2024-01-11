@@ -77,12 +77,20 @@ struct AlleleCount {
 struct MendelTrio
 {
 	std::array<int,3> id;
-	std::array<int8_t,3> gt;
+	std::array<int8_t,3> gt = {-1,-1,-1};
 
-	MendelTrio(int _id)
+	MendelTrio(const int kid, const int fth, const int mth)
+	{
+		assert(kid>=0);
+		assert(fth>=-1);
+		assert(mth>=-1);
+		assert(fth>=0 || mth>=0);
+		id={kid,fth,mth};
+	}
+
+	MendelTrio(const int _id)
 	{
 		id={_id,-1,-1};
-		gt={0,-1,-1};
 	}
 
 	void set_gt(const int _id, const int8_t _gt)
