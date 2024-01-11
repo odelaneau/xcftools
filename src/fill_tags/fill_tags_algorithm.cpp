@@ -154,7 +154,7 @@ void fill_tags::finalize_tags(xcf_reader& XR, const uint32_t idx_file)
 		const std::string bfname = helper_tools::get_name_from_vcf(A.mOutputFilename) + ".mendel.ind.txt.gz";
 	    //Mendel per sample summary
 		vrb.title("Writing Mendel per sample summary in [" + bfname + "]");
-		output_file fds(bfname + ".mendel.ind.txt.gz");
+		output_file fds(bfname);
 		for (int kidx = 0 ; kidx < XR.ind_names[idx_file].size() ; kidx++)
 		{
 			fds << 	XR.ind_names[idx_file][kidx] << "\t" <<

@@ -45,8 +45,8 @@ EXEFILE=bin/$(NAME)_static
 
 #CONDITIONAL PATH DEFINITON
 desktop: HTSSRC=/home/srubinac/git
-desktop: HTSLIB_INC=$(HTSSRC)/htslib-1.17
-desktop: HTSLIB_LIB=$(HTSSRC)/htslib-1.17/libhts.a
+desktop: HTSLIB_INC=$(HTSSRC)/htslib-1.19
+desktop: HTSLIB_LIB=$(HTSSRC)/htslib-1.19/libhts.a
 desktop: BOOST_INC=/usr/include
 desktop: BOOST_LIB_IO=/usr/local/lib/libboost_iostreams.a
 desktop: BOOST_LIB_PO=/usr/local/lib/libboost_program_options.a
