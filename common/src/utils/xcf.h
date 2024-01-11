@@ -742,7 +742,6 @@ public:
 	    if (!hts_fd)  helper_tools::error("Could not open " + hts_fname);
 	    if (hts_fname!="-") hts_fidx = hts_fname + ".csi";
 	    else hts_fidx = "";
-		if (nthreads > 1) hts_set_threads(hts_fd, nthreads);
 
 		if (!hts_genotypes && write_genotypes) {
 			//BINARY
@@ -849,6 +848,7 @@ public:
 		if (!hts_fidx.empty())
 			if (bcf_idx_init(hts_fd, hts_hdr, 14, hts_fidx.c_str()))
 				helper_tools::error("Initializing .csi");
+
 		bcf_clear1(hts_record);
 	}
 

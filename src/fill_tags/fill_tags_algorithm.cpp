@@ -87,7 +87,8 @@ void fill_tags::process_families(xcf_reader& XR, const uint32_t idx_file)
 	if (A.mTags & (SET_MENDEL))
 	{
 		mendel_errors = std::vector < int > (nsamples, 0);
-		mendel_totals = std::vector < int > (nsamples, 0);
+		mendel_totals_fam_minor = std::vector < int > (nsamples, 0);
+		mendel_totals_fam_all = std::vector < int > (nsamples, 0);
 
 		std::map < std::string , int > mapF2S;
 	    for (int i = 0 ; i < nsamples ; i ++)
@@ -150,11 +151,19 @@ void fill_tags::finalize_tags(xcf_reader& XR, const uint32_t idx_file)
 {
 	if (A.mTags & (SET_MENDEL))
 	{
+		const std::string bfname = helper_tools::get_name_from_vcf(A.mOutputFilename) + ".mendel.ind.txt.gz";
 	    //Mendel per sample summary
-		vrb.title("Writing Mendel per sample summary in [" + A.mOutputFilename + ".ind.txt.gz]");
-		output_file fds(A.mOutputFilename + ".ind.txt.gz");
-		for (int kidx = 0 ; kidx < XR.ind_names[idx_file].size() ; kidx++) {
-			fds << XR.ind_names[idx_file][kidx] << "\t" << XR.ind_fathers[idx_file][kidx] << "\t" << XR.ind_mothers[idx_file][kidx] << "\t" << mendel_errors[kidx] << "\t" << mendel_totals[kidx] << std::endl;
+		vrb.title("Writing Mendel per sample summary in [" + bfname + "]");
+		output_file fds(bfname + ".mendel.ind.txt.gz");
+		for (int kidx = 0 ; kidx < XR.ind_names[idx_file].size() ; kidx++)
+		{
+			fds << 	XR.ind_names[idx_file][kidx] << "\t" <<
+					XR.ind_fathers[idx_file][kidx] << "\t" <<
+					XR.ind_mothers[idx_file][kidx] << "\t" <<
+					XR.ind_pops[idx_file][kidx] << "\t" <<
+					mendel_errors[kidx] << "\t" <<
+					mendel_totals_fam_all[kidx] << "\t" <<
+					mendel_totals_fam_minor[kidx] << std::endl;
 		}
 		fds.close();
 	}
@@ -250,6 +259,7 @@ void fill_tags::process_tags(const xcf_reader& XR, xcf_writer& XW,const uint32_t
 	const int32_t type = XR.typeRecord(idx_file);
 	bcf1_t* rec = XR.sync_lines[idx_file];
 	const bool major = (XR.getAF(idx_file)>0.5f);
+	MendelError merr; //might not be needed, but not a big deal - at least we do not reallocate
 
 	if ( A.mTags & SET_NS )
 	{
@@ -362,21 +372,23 @@ void fill_tags::process_tags(const xcf_reader& XR, xcf_writer& XW,const uint32_t
 
 	if (A.mTags & (SET_MENDEL))
 	{
-		int32_t n_err=0, n_tot=0;
-		float fmendel=0;
-		calc_mendel_err(n_err,n_tot, major);
-		if (n_tot>0 && n_err<=n_tot)
-			fmendel=(float)n_err/n_tot;
+		calc_mendel_err(merr,major);
 
 		std::string tag;
-		tag = "MC";
-		if ( bcf_update_info_int32(XW.hts_hdr,rec,tag.c_str(),&n_err,1)!=0 )
+		tag = "MERR_CNT";
+		if ( bcf_update_info_int32(XW.hts_hdr,rec,tag.c_str(),&merr.n_err,1)!=0 )
 			vrb.error("Error occurred while updating INFO/" + tag + " at: " + XR.chr + ":" + stb.str(XR.pos));
-		tag = "MN";
-		if ( bcf_update_info_int32(XW.hts_hdr,rec,tag.c_str(),&n_tot,1)!=0 )
+		tag = "MTOT_ALL";
+		if ( bcf_update_info_int32(XW.hts_hdr,rec,tag.c_str(),&merr.n_tot_fam_all,1)!=0 )
 			vrb.error("Error occurred while updating INFO/" + tag + " at: " + XR.chr + ":" + stb.str(XR.pos));
-		tag = "MF";
-		if ( bcf_update_info_float(XW.hts_hdr,rec,tag.c_str(),&fmendel,1)!=0 )
+		tag = "MTOT_MINOR";
+		if ( bcf_update_info_int32(XW.hts_hdr,rec,tag.c_str(),&merr.n_tot_fam_minor,1)!=0 )
+			vrb.error("Error occurred while updating INFO/" + tag + " at: " + XR.chr + ":" + stb.str(XR.pos));
+		tag = "MERR_RATE_ALL";
+		if ( bcf_update_info_float(XW.hts_hdr,rec,tag.c_str(),&merr.fmendel_fam_all,1)!=0 )
+			vrb.error("Error occurred while updating INFO/" + tag + " at: " + XR.chr + ":" + stb.str(XR.pos));
+		tag = "MERR_RATE_MINOR";
+		if ( bcf_update_info_float(XW.hts_hdr,rec,tag.c_str(),&merr.fmendel_fam_minor,1)!=0 )
 			vrb.error("Error occurred while updating INFO/" + tag + " at: " + XR.chr + ":" + stb.str(XR.pos));
 	}
 
@@ -447,18 +459,22 @@ void fill_tags::process_populations(const xcf_reader& XR, const uint32_t idx_fil
 	else vrb.bullet("Populations not loaded (no population specific calculations)");
 }
 
-void fill_tags::calc_mendel_err(int& n_err, int& n_tot, const bool major)
+void fill_tags::calc_mendel_err(MendelError& merr, const bool major)
 {
-	n_err=0; n_tot=0;
+	merr.reset();
 	for (int f = 0 ; f < fam_trio.size() ; f ++)
 	{
+		if (fam_trio[f].gt[0]<0) continue;
 		const int err = fam_trio[f].checkMendelError();
-		const int tot = fam_trio[f].checkMendelTotal(major);
-		n_err+=err;
-		n_tot+=tot;
+		const int tot_fam = fam_trio[f].checkMendelTotal(major);
+		merr.n_err+=err;
+		merr.n_tot_fam_minor+=tot_fam;
+		merr.n_tot_fam_all++;
 		mendel_errors[fam_trio[f].id[0]]+=err;
-		mendel_totals[fam_trio[f].id[0]]+=tot;
+		mendel_totals_fam_minor[fam_trio[f].id[0]]+=tot_fam;
+		mendel_totals_fam_all[fam_trio[f].id[0]] ++;
 	}
+	merr.calc_fmendel();
 }
 void fill_tags::calc_inbreeding_f(const int an, const int fcnt0, const int nhet, float *inbreeding_f) const
 {

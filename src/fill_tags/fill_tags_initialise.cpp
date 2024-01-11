@@ -52,9 +52,11 @@ void fill_tags::hdr_append(bcf_hdr_t* out_hdr)
     }
     if ( A.mTags & SET_MENDEL )
     {
-    	bcf_hdr_printf(out_hdr, "##INFO=<ID=MC,Number=1,Type=Integer,Description=\"Number of Mendel errors in duos/trios\">");
-    	bcf_hdr_printf(out_hdr, "##INFO=<ID=MN,Number=1,Type=Integer,Description=\"Number of total non-major triplets/duplets in trios/duos\">");
-    	bcf_hdr_printf(out_hdr, "##INFO=<ID=MF,Number=1,Type=Float,Description=\"Mendel error rate (MC/MN)\">");
+    	bcf_hdr_printf(out_hdr, "##INFO=<ID=MERR_CNT,Number=1,Type=Integer,Description=\"Number of Mendel errors in duos/trios\">");
+    	bcf_hdr_printf(out_hdr, "##INFO=<ID=MTOT_ALL,Number=1,Type=Integer,Description=\"Number of non-missing trios/duos\">");
+    	bcf_hdr_printf(out_hdr, "##INFO=<ID=MTOT_MINOR,Number=1,Type=Integer,Description=\"Number of non-missing and non-major only triplets/duplets in trios/duos\">");
+    	bcf_hdr_printf(out_hdr, "##INFO=<ID=MERR_RATE_ALL,Number=1,Type=Float,Description=\"Mendel error rate (MERR_CNT/MTOT_ALL)\">");
+    	bcf_hdr_printf(out_hdr, "##INFO=<ID=MERR_RATE_MINOR,Number=1,Type=Float,Description=\"Mendel error rate in non-major only triplets/duplets (MERR_CNT/MTOT_ALT)\">");
     }
     if ( A.mTags & SET_END ) bcf_hdr_printf(out_hdr, "##INFO=<ID=END,Number=1,Type=Integer,Description=\"End position of the variant\">");
     if ( A.mTags & SET_TYPE ) bcf_hdr_printf(out_hdr, "##INFO=<ID=TYPE,Number=.,Type=String,Description=\"Variant type\">");

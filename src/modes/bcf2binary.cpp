@@ -70,6 +70,8 @@ void bcf2binary::convert(string finput, string foutput) {
 
 	//Opening XCF writer for output [false means NO records in BCF body but in external BIN file]
 	xcf_writer XW(foutput, false, nthreads);
+	//if (nthreads > 1)
+	//	hts_set_opt(XW.hts_fd, HTS_OPT_THREAD_POOL, XR.sync_reader->p);
 	bcf1_t* rec = XW.hts_record;
 
 	//Write header
@@ -175,7 +177,7 @@ void bcf2binary::convert(string finput, string foutput) {
 	free(output_buffer);
 
 	//Close files
+	XW.close();//always close XW first? important for multithreading if set
 	XR.close();
-	XW.close();
 }
 

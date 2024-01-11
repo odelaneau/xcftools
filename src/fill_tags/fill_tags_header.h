@@ -29,6 +29,36 @@
 #include <containers/bitvector.h>
 #include <objects/sparse_genotype.h>
 
+static const int mendel_lt[27] = {
+    0,  // kg=0, fg=0, mg=0
+    0,  // kg=0, fg=0, mg=1
+    1,  // kg=0, fg=0, mg=2
+    0,  // kg=0, fg=1, mg=0
+    0,  // kg=0, fg=1, mg=1
+    1,  // kg=0, fg=1, mg=2
+    1,  // kg=0, fg=2, mg=0
+    1,  // kg=0, fg=2, mg=1
+    1,  // kg=0, fg=2, mg=2
+    1,  // kg=1, fg=0, mg=0
+    0,  // kg=1, fg=0, mg=1
+    0,  // kg=1, fg=0, mg=2
+    0,  // kg=1, fg=1, mg=0
+    0,  // kg=1, fg=1, mg=1
+    0,  // kg=1, fg=1, mg=2
+    0,  // kg=1, fg=2, mg=0
+    0,  // kg=1, fg=2, mg=1
+    1,  // kg=1, fg=2, mg=2
+    1,  // kg=2, fg=0, mg=0
+    1,  // kg=2, fg=0, mg=1
+    1,  // kg=2, fg=0, mg=2
+    1,  // kg=2, fg=1, mg=0
+    0,  // kg=2, fg=1, mg=1
+    0,  // kg=2, fg=1, mg=2
+    1,  // kg=2, fg=2, mg=0
+    0,  // kg=2, fg=2, mg=1
+    0   // kg=2, fg=2, mg=2
+};
+
 struct AlleleCount {
     std::array<int,2> nhet;
     std::array<int,2> nhom;
@@ -84,53 +114,60 @@ struct MendelTrio
 		const int8_t kg=gt[0];
 		const int8_t fg=gt[1];
 		const int8_t mg=gt[2];
-		int error = 0;
-		if (kg>=0 && fg>=0 && mg>=0) {
-			if (fg == 0 && mg == 0 && kg == 1) { error = 1;}
-			if (fg == 0 && mg == 0 && kg == 2) { error = 1;}
-			if (fg == 0 && mg == 1 && kg == 2) { error = 1;}
-			if (fg == 0 && mg == 2 && kg == 0) { error = 1;}
-			if (fg == 0 && mg == 2 && kg == 2) { error = 1;}
-			if (fg == 1 && mg == 0 && kg == 2) { error = 1;}
-			if (fg == 1 && mg == 2 && kg == 0) { error = 1;}
-			if (fg == 2 && mg == 0 && kg == 0) { error = 1;}
-			if (fg == 2 && mg == 0 && kg == 2) { error = 1;}
-			if (fg == 2 && mg == 1 && kg == 0) { error = 1;}
-			if (fg == 2 && mg == 2 && kg == 0) { error = 1;}
-			if (fg == 2 && mg == 2 && kg == 1) { error = 1;}
-		}
-		if (kg>=0 && fg>=0 && mg<0) {
-			if (fg == 0 && kg == 2) { error = 1;}
-			if (fg == 2 && kg == 0) { error = 1;}
-		}
-		if (kg>=0 && fg<0 && mg>=0) {
-			if (mg == 0 && kg == 2) { error = 1;}
-			if (mg == 2 && kg == 0) { error = 1;}
-		}
-		return error;
+		if (kg>=0 && fg>=0 && mg>=0)
+			return mendel_lt[9*kg+3*fg+mg];
+		if (kg>=0 && fg>=0 && mg<0)
+			return ((fg == 0 && kg == 2) || (fg == 2 && kg == 0));
+		if (kg>=0 && fg<0 && mg>=0)
+			return ((mg == 0 && kg == 2) || (mg == 2 && kg == 0));
+		return 0;
 	}
 	int checkMendelTotal(const bool major)
 	{
 		const int8_t kg=gt[0];
 		const int8_t fg=gt[1];
 		const int8_t mg=gt[2];
-		int total = 0;
-		if (kg>=0 && fg>=0 && mg>=0) {
-			//total = (!major && kg!=0 && fg!=0 && mg!=0) || (major && kg!=2 && fg!=2 && mg!=2);
-			if (major) total = (kg!=2) || (fg!=2) || (mg!=2);
-			else total = (kg!=0) || (fg!=0) || (mg!=0);
-		}
-		if (kg>=0 && fg>=0 && mg<0) {
-			//total = (!major && kg!=0 && fg!=0) || (major && kg!=2 && fg!=2);
-			if (major) total = (kg!=2) || (fg!=2);
-			else total = (kg!=0) || (fg!=0);
-		}
-		if (kg>=0 && fg<0 && mg>=0) {
-			//total = (!major && kg!=0 && mg!=0) || (major && kg!=2 && mg!=2);
-			if (major) total = (kg!=2) || (mg!=2);
-			else total = (kg!=0) || (mg!=0);
-		}
-		return total;
+		int8_t maj_gt = 2*major;
+		if (kg<0)
+			return 0;
+		if (fg>=0 && mg>=0)
+			return (kg!=maj_gt) || (fg!=maj_gt) || (mg!=maj_gt);
+		if (fg>=0 && mg<0)
+			return (kg!=maj_gt) || (fg!=maj_gt);
+		if (fg<0 && mg>=0)
+			return (kg!=maj_gt) || (mg!=maj_gt);
+		return 0;
+	}
+};
+
+struct MendelError
+{
+	int n_err;
+	int n_tot_fam_all;
+	int n_tot_fam_minor;
+	float fmendel_fam_all;
+	float fmendel_fam_minor;
+
+
+	MendelError() { reset(); };
+
+	void reset()
+	{
+		n_err=0;
+		n_tot_fam_all=0;
+		n_tot_fam_minor=0;
+		fmendel_fam_minor=0.0;
+		fmendel_fam_all=0.0f;
+	}
+
+	void calc_fmendel()
+	{
+		fmendel_fam_all=0;
+		fmendel_fam_minor=0;
+		if (n_tot_fam_all>0) //allow >1?
+			fmendel_fam_all=(float)n_err/n_tot_fam_all;
+		if (n_tot_fam_minor>0) //allow >1?
+			fmendel_fam_minor=(float)n_err/n_tot_fam_minor;
 	}
 };
 
@@ -149,12 +186,11 @@ public:
     //mendel
     std::vector<MendelTrio> fam_trio;
     std::vector<std::vector<size_t>> samples2fam;
-
-    //std::vector < std::string > kids;
-	//std::vector < int > mothers_idx;
-	//std::vector < int > fathers_idx;
 	std::vector < int > mendel_errors;
-	std::vector < int > mendel_totals;
+	std::vector < int > mendel_totals_fam_all;
+	std::vector < int > mendel_totals_fam_minor;
+
+	//std::vector < int > mendel_totals_pop;
 
 	//Buffer for input/output
 
@@ -186,7 +222,7 @@ public:
 	void calc_hwe(int nref, int nalt, int nhet, std::vector<double>& hwe_probs, float *p_hwe, float *p_exc_het) const;
 	void calc_hwe_chisq(const int an, const int fcnt0, const int nhom0, const int nhom1, const int nhet, float *p_chi_square_pval) const;
 	void calc_inbreeding_f(const int an, const int fcnt0, const int nhet, float *inbreeding_f) const;
-	void calc_mendel_err(int& n_err, int& n_tot, const bool major);
+	void calc_mendel_err(MendelError& merr, const bool major);
 
 	void process_families(xcf_reader& XR, const uint32_t idx_file);
 	void finalize_tags(xcf_reader& XR, const uint32_t idx_file);
