@@ -115,12 +115,11 @@ namespace helper_tools
 	}
 
 	inline void error(std::string s) {
-		std::cout << std::endl << "\x1B[31m" << "ERROR: " <<  "\033[0m" << s << std::endl;
-		exit(EXIT_FAILURE);
+		vrb.error(s);
 	}
 
 	inline void warning(std::string s) {
-		std::cout << std::endl << "\x1B[33m" << "WARNING: " <<  "\033[0m" << s << std::endl;
+		vrb.warning(s);
 	}
 
 	inline std::string date() {
