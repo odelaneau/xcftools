@@ -35,6 +35,7 @@ bcf2binary::bcf2binary(string _region, float _minmaf, int _nthreads, int _mode, 
 	nthreads = _nthreads;
 	region = _region;
 	minmaf = _minmaf;
+	drop_info = _drop_info;
 }
 
 bcf2binary::~bcf2binary() {
@@ -70,12 +71,12 @@ void bcf2binary::convert(string finput, string foutput) {
 
 	//Opening XCF writer for output [false means NO records in BCF body but in external BIN file]
 	xcf_writer XW(foutput, false, nthreads);
-	//if (nthreads > 1)
-	//	hts_set_opt(XW.hts_fd, HTS_OPT_THREAD_POOL, XR.sync_reader->p);
 	bcf1_t* rec = XW.hts_record;
 
 	//Write header
-	XW.writeHeader(XR.sync_reader->readers[0].header, samples, string("XCFtools ") + string(XCFTLS_VERSION));
+	if (drop_info) XW.writeHeader(XR.sync_reader->readers[0].header, samples, string("XCFtools ") + string(XCFTLS_VERSION));
+	else XW.writeHeaderClone(XR.sync_reader->readers[0].header,samples, string("XCFtools ") + string(XCFTLS_VERSION));
+	//XW.writeHeader(XR.sync_reader->readers[0].header, samples, string("XCFtools ") + string(XCFTLS_VERSION));
 
 	//Allocate input/output buffer
 	int32_t * input_buffer = (int32_t*)malloc(2 * nsamples * sizeof(int32_t));
@@ -145,8 +146,12 @@ void bcf2binary::convert(string finput, string foutput) {
 		}
 
 		//Copy over variant information
-		XW.writeInfo(XR.chr, XR.pos, XR.ref, XR.alt, XR.rsid, XR.getAC(), XR.getAN());
-
+		if (drop_info) XW.writeInfo(XR.chr, XR.pos, XR.ref, XR.alt, XR.rsid, XR.getAC(), XR.getAN());
+		else
+		{
+			XW.hts_record = XR.sync_lines[0];
+			bcf_subset(XW.hts_hdr, XW.hts_record, 0, 0);//to remove format from XR's bcf1_t
+		}
 
 		//Write record
 		if (mode == CONV_BCF_SG && rare)
@@ -176,6 +181,7 @@ void bcf2binary::convert(string finput, string foutput) {
 	free(input_buffer);
 	free(output_buffer);
 
+	if (!drop_info) XW.hts_record = rec;
 	//Close files
 	XW.close();//always close XW first? important for multithreading if set
 	XR.close();

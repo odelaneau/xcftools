@@ -37,12 +37,14 @@ void viewer::declare_options() {
 	opt_input.add_options()
 			("input,i", bpo::value< string >(), "Input genotype data in plain VCF/BCF format")
 			("region,r", bpo::value< string >(), "Region to be considered in --input")
-			("maf,m", bpo::value< float >()->default_value(0.001), "Threshold to distinguish rare variants from common ones");
+			("maf,m", bpo::value< float >()->default_value(0.001), "Threshold to distinguish rare variants from common ones")
+			;
 
 	bpo::options_description opt_output ("Output files");
 	opt_output.add_options()
 			("output,o", bpo::value< string >()->default_value("-"), "Output file [- for stdout]")
 			("format,O", bpo::value< string >()->default_value("bcf"), "Output file format")
+			("keep-info","Keep INFO field instead of creating a minimal BCF file")
 			("log", bpo::value< string >(), "Output log file");
 
 	descriptions.add(opt_base).add(opt_input).add(opt_output);
@@ -109,8 +111,10 @@ void viewer::verbose_files() {
 
 void viewer::verbose_options() {
 	vrb.title("Parameters:");
-	vrb.bullet("Seed    : " + stb.str(options["seed"].as < int > ()));
-	vrb.bullet("Threads : " + stb.str(options["threads"].as < int > ()) + " threads");
+	std::array<std::string,2> yes_no = {"YES","NO"};
+	vrb.bullet("Keep INFO     : [" + yes_no[options.count("keep-info")] + "]");
+	vrb.bullet("Seed          : [" + stb.str(options["seed"].as < int > ()) + "]");
+	vrb.bullet("Threads       : [" + stb.str(options["threads"].as < int > ()) + " threads]");
 
 	string format = options["format"].as < string > ();
 	if (format[0] == 's') vrb.bullet("MAF     : " + stb.str(options["maf"].as < float > ()));

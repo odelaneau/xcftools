@@ -34,7 +34,7 @@ void viewer::view() {
 	string finput = options["input"].as < string > ();
 	string foutput = options["output"].as < string > ();
 	uint32_t nthreads = options["threads"].as < int > ();
-	bool drop_info = options.count("drop-info");
+	bool drop_info = !options.count("keep-info");
 	float maf = options["maf"].as < float > ();
 
 	//
