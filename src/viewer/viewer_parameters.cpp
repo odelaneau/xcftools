@@ -111,8 +111,8 @@ void viewer::verbose_files() {
 
 void viewer::verbose_options() {
 	vrb.title("Parameters:");
-	std::array<std::string,2> yes_no = {"YES","NO"};
-	vrb.bullet("Keep INFO     : [" + yes_no[options.count("keep-info")] + "]");
+	std::array<std::string,2> no_yes = {"NO","YES"};
+	vrb.bullet("Keep INFO     : [" + no_yes[options.count("keep-info")] + "]");
 	vrb.bullet("Seed          : [" + stb.str(options["seed"].as < int > ()) + "]");
 	vrb.bullet("Threads       : [" + stb.str(options["threads"].as < int > ()) + " threads]");
 
