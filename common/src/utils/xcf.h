@@ -32,6 +32,7 @@
 #include <iomanip>
 #include <map>
 
+#include "otools.h"
 
 //INCLUDE HTS LIBRARY
 extern "C" {
