@@ -24,7 +24,7 @@
 
 using namespace std;
 
-viewer::viewer() {
+viewer::viewer() : input_fmt_bcf(true), drop_info(true), maf(1.0f/32), subsample(false), subsample_exclude(false), subsample_isforce(false), nthreads(1) {
 }
 
 viewer::~viewer() {

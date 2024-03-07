@@ -24,34 +24,29 @@
 
 #include <modes/bcf2binary.h>
 #include <modes/binary2bcf.h>
+#include <modes/binary2binary.h>
 
 using namespace std;
 
-void viewer::view() {
-	//Retrieve parameter values
-	string region = (options.count("region")) ? options["region"].as < string > () : "";
-	string format = options["format"].as < string > ();
-	string finput = options["input"].as < string > ();
-	string foutput = options["output"].as < string > ();
-	uint32_t nthreads = options["threads"].as < int > ();
-	bool drop_info = !options.count("keep-info");
-	float maf = options["maf"].as < float > ();
+void viewer::view()
+{
+	if (isBCF(format) && !input_fmt_bcf) binary2bcf (region, nthreads).convert(finput, foutput);
 
-	//
-	if (format == "bg") bcf2binary (region, maf, nthreads, CONV_BCF_BG,drop_info).convert(finput, foutput);
+    int conversion_type = -1;
+    if (format == "bg") conversion_type = CONV_BCF_BG;
+    else if (format == "bh") conversion_type = CONV_BCF_BH;
+    else if (format == "sg") conversion_type = CONV_BCF_SG;
+    else if (format == "sh") conversion_type = CONV_BCF_SH;
+    else vrb.error("Output format [" + format + "] unrecognized");
 
-	//
-	else if (format == "bh") bcf2binary (region, maf, nthreads, CONV_BCF_BH,drop_info).convert(finput, foutput);
+    if (input_fmt_bcf)
+    	bcf2binary(region, maf, nthreads, conversion_type, drop_info).convert(finput, foutput);
+    else
+    {
+    	if (subsample)
+    		binary2binary(region, maf, nthreads, conversion_type, drop_info).convert(finput, foutput, subsample_exclude, subsample_isforce, samples_to_keep);
+    	else
+    		binary2binary(region, maf, nthreads, conversion_type, drop_info).convert(finput, foutput);
 
-	//
-	else if (format == "sg") bcf2binary (region, maf, nthreads, CONV_BCF_SG,drop_info).convert(finput, foutput);
-
-	//
-	else if (format == "sh") bcf2binary (region, maf, nthreads, CONV_BCF_SH,drop_info).convert(finput, foutput);
-
-	//
-	else  if (isBCF(format)) binary2bcf (region, nthreads).convert(finput, foutput);
-
-	//
-	else vrb.error("Output format [" + format + "] unrecognized");
+    }
 }

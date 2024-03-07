@@ -30,6 +30,7 @@
 
 #include <utils/otools.h>
 
+
 class binary2bcf {
 public:
 

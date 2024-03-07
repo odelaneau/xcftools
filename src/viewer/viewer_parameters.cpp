@@ -38,6 +38,9 @@ void viewer::declare_options() {
 			("input,i", bpo::value< string >(), "Input genotype data in plain VCF/BCF format")
 			("region,r", bpo::value< string >(), "Region to be considered in --input")
 			("maf,m", bpo::value< float >()->default_value(0.001), "Threshold to distinguish rare variants from common ones")
+			("samples,s", bpo::value< string >(), "XCF2XCF only: comma separated list of samples to include (or exclude with \"^\" prefix)")
+			("samples-file,S", bpo::value< string >(), "XCF2XCF only: File of samples to include (or exclude with \"^\" prefix)")
+			("force-samples", "Only warn about unknown subset samples")
 			;
 
 	bpo::options_description opt_output ("Output files");
@@ -79,43 +82,82 @@ void viewer::check_options() {
 		vrb.warning("--region parameter not specified. XCFTOOLS will attempt to read without requiring a specific index/region. Please note that this is experimental and multi-chromosome files can give rise to unexpected behaviors. Please make sure your file has only one chromosome.");
 	if (!options.count("format")) vrb.error("--format needs to be specified");
 
-	string format = options["format"].as < string > ();
+	string formatS = options["format"].as < string > ();
 	string input = options["input"].as < string > ();
 	string output = options["output"].as < string > ();
-	if (isBCF(format) && input == "-") vrb.error("Only BCF format [bcf] is supported on stdin");
-	if (!isBCF(format) && output == "-") vrb.error("Only BCF format [bcf] is supported on stdout");
+	if (isBCF(formatS) && input == "-") vrb.error("Only BCF format [bcf] is supported on stdin");
+	if (!isBCF(formatS) && output == "-") vrb.error("Only BCF format [bcf] is supported on stdout");
+
+	if (input!="-") input_fmt_bcf = !isBinaryFile(input);
+	else input_fmt_bcf=true;
 
 	if (options.count("seed") && options["seed"].as < int > () < 0)
 		vrb.error("Random number generator needs a positive seed value");
 
 	if (options.count("threads") && options["threads"].as < int > () < 1)
 		vrb.error("You must use at least 1 thread");
+
+	if (!input_fmt_bcf && !isBCF(formatS))
+	{
+		if (options.count("samples") || options.count("samples-file"))
+		{
+			if (options.count("samples") && options.count("samples-file"))
+				vrb.error("Options --samples and --samples-file cannot be both specified");
+
+			subsample = true;
+			subsample_isforce = options.count("force-samples");
+			const bool is_sample_file = options.count("samples-file");
+			std::string samples = is_sample_file ? options["samples-file"].as < string > () : options["samples"].as < string > ();
+			if (samples.empty()) vrb.error("Sample option is empty");
+			subsample_exclude = (!samples.empty() && samples[0] == '^');
+			if (subsample_exclude) samples = samples.substr(1);
+			read_samples(samples, is_sample_file);
+		}
+	}
+	region = (options.count("region")) ? options["region"].as < string > () : "";
+	format = options["format"].as < string > ();
+	finput = options["input"].as < string > ();
+	foutput = options["output"].as < string > ();
+	nthreads = options["threads"].as < int > ();
+	drop_info = !options.count("keep-info");
+	maf = options["maf"].as < float > ();
 }
 
 void viewer::verbose_files() {
 	vrb.title("Files:");
-	string format = options["format"].as < string > ();
-	string input = options["input"].as < string > ();
-	string output = options["output"].as < string > ();
-	if (isXCF(format)) {
-		vrb.bullet("Input BCF     : [" + input + "]");
-		vrb.bullet("Output XCF    : [" + output + "]");
-	} else if (isBCF(format)) {
-		if (output == "-") vrb.bullet("Input BCF   : [STDOUT] / uncompressed");
-		else vrb.bullet("Input XCF     : [" + options["input"].as < string > () + "]");
-		if (output == "-") vrb.bullet("Output BCF   : [STDOUT] / uncompressed");
+
+	//input
+	if (input_fmt_bcf)
+	{
+		if (finput == "-")
+			 vrb.bullet("Input BCF   : [STDIN] / uncompressed");
+		else
+			vrb.bullet("Input BCF     : [" + finput + "]");
+	}
+	else
+		vrb.bullet("Input XCF     : [" + finput + "]");
+
+	//output
+	if (isXCF(format))
+	{
+		vrb.bullet("Output XCF    : [" + foutput + "]");
+	} else if (isBCF(format))
+	{
+		if (foutput == "-") vrb.bullet("Output BCF   : [STDOUT] / uncompressed");
 		else vrb.bullet("Output BCF    : [" + options["output"].as < string > () + "]");
-	} else vrb.error("Output format [" + format + "] unrecognized");
+	}
+	else vrb.error("Output format [" + format + "] unrecognized");
+
 	if (options.count("log")) vrb.bullet("Output LOG    : [" + options["log"].as < string > () + "]");
 }
 
 void viewer::verbose_options() {
 	vrb.title("Parameters:");
-	std::array<std::string,2> no_yes = {"NO","YES"};
-	vrb.bullet("Keep INFO     : [" + no_yes[options.count("keep-info")] + "]");
+	std::array<std::string,2> yes_no = {"YES","NO"};
+	vrb.bullet("Keep INFO     : [" + yes_no[!drop_info] + "]");
 	vrb.bullet("Seed          : [" + stb.str(options["seed"].as < int > ()) + "]");
-	vrb.bullet("Threads       : [" + stb.str(options["threads"].as < int > ()) + " threads]");
+	vrb.bullet("Threads       : [" + stb.str(nthreads) + " threads]");
 
 	string format = options["format"].as < string > ();
-	if (format[0] == 's') vrb.bullet("MAF     : " + stb.str(options["maf"].as < float > ()));
+	if (format[0] == 's') vrb.bullet("MAF     : " + stb.str(maf));
 }

@@ -44,11 +44,12 @@ bcf2binary::~bcf2binary() {
 void bcf2binary::convert(string finput, string foutput) {
 	tac.clock();
 
-	switch (mode) {
-	case CONV_BCF_BG: vrb.title("Converting from BCF to XCF [Binary/Genotype]"); break;
-	case CONV_BCF_BH: vrb.title("Converting from BCF to XCF [Binary/Haplotype]"); break;
-	case CONV_BCF_SG: vrb.title("Converting from BCF to XCF [Sparse/Genotype]"); break;
-	case CONV_BCF_SH: vrb.title("Converting from BCF to XCF [Sparse/Haplotype]"); break;
+	switch (mode)
+	{
+		case CONV_BCF_BG: vrb.title("Converting from BCF to XCF [Binary/Genotype]"); break;
+		case CONV_BCF_BH: vrb.title("Converting from BCF to XCF [Binary/Haplotype]"); break;
+		case CONV_BCF_SG: vrb.title("Converting from BCF to XCF [Sparse/Genotype]"); break;
+		case CONV_BCF_SH: vrb.title("Converting from BCF to XCF [Sparse/Haplotype]"); break;
 	}
 
 	if (region.empty()) vrb.bullet("Region        : All");

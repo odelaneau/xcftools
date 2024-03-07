@@ -36,6 +36,21 @@ public:
 	~viewer();
 
 	//ROUTINES
+	std::string region;
+	std::string format;
+	std::string finput;
+	std::string foutput;
+	bool input_fmt_bcf;
+	bool drop_info;
+	float maf;
+	bool subsample;
+	bool subsample_exclude;
+	bool subsample_isforce;
+	std::vector<std::string> samples_to_keep;
+
+	uint32_t nthreads;
+
+
 	bool isBCF(std::string);
 	bool isXCF(std::string);
 
@@ -54,6 +69,59 @@ public:
 	void read_files_and_initialise();
 	void view(std::vector < std::string > &);
 	void write_files_and_finalise();
+
+	bool isBinaryFile(const std::string ifile) const
+	{
+		bool val;
+	    htsFile *file = hts_open(ifile.c_str(), "r");
+	    if (!file)
+	        vrb.error("Failed to open file: " + ifile);
+
+	    bcf_hdr_t *header = bcf_hdr_read(file);
+	    if (!header)
+	    	fprintf(stderr, "Failed to read header.\n");
+
+	    int32_t flagSEEK = bcf_hdr_idinfo_exists(header, BCF_HL_INFO, bcf_hdr_id2int(header, BCF_DT_ID, "SEEK"));
+	    uint32_t nsamples = bcf_hdr_nsamples(header);
+
+	    bcf_hdr_destroy(header);
+	    hts_close(file);
+
+	    if (flagSEEK >= 0 && nsamples == 0)
+	    	val = true;
+	    else if (!flagSEEK && nsamples != 0)
+	    	val = false;
+	    else if (!flagSEEK && nsamples == 0)
+	    	vrb.error("BCF file found with no sample");
+	    else if (flagSEEK && nsamples != 0)
+	    	vrb.error("Binary file found with a non-empty BCF file (nsamples>0)");
+
+	    return val;
+	}
+
+	void read_samples(const std::string smp, const bool is_sample_file)
+	{
+		if (is_sample_file)
+		{
+			std::string line;
+			input_file file(smp);
+			while (std::getline(file, line))
+			{
+				if (line.find_first_of(" ,") != std::string::npos)
+					vrb.error("Sample file contains spaces, commas, or similar characters. Exiting.");
+
+				samples_to_keep.push_back(line);
+			}
+			file.close();
+		}
+		else stb.split(smp,samples_to_keep,",");
+
+		if (samples_to_keep.empty())
+		{
+			vrb.error("No sample to be included in file. Exiting.");
+		}
+	}
+
 };
 
 #endif

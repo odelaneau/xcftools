@@ -65,9 +65,9 @@ void bitvector::setneg(uint32_t idx) {
 }
 
 inline
-void bitvector::set(bool value) {
-	if (value) memset(bytes, 0, n_bytes);
-	else memset(bytes, UCHAR_MAX, n_bytes);
+void bitvector::set(const bool value) {
+    const char byte_value = value ? 0xFF : 0x00; // Set byte_value to 0xFF if value is true, otherwise 0x00
+    memset(bytes, byte_value, n_bytes);
 }
 
 inline

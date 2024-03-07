@@ -451,7 +451,7 @@ void concat::concat_ligate()
             		n_lines_rare=0;
     				scan_overlap(ifname, XR.chr.c_str(), XR.pos-1);
             	}
-        		XW.writeInfo(XR.chr, XR.pos, XR.ref, XR.alt, XR.rsid, XR.getAC(), XR.getAN());
+        		XW.writeInfo(XR.chr, XR.pos, XR.ref, XR.alt, XR.rsid, XR.getAC(), XR.getAN());//this should not be disruptive in the INFO
 				const bool uphalf = n_sites_buff >= nsites_buff_d2.back();
         		const int32_t type = XR.typeRecord(uphalf);
         		if (type == RECORD_BINARY_HAPLOTYPE)

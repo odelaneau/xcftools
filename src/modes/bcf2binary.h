@@ -29,6 +29,8 @@
 #define CONV_BCF_SH	3
 
 #include <utils/otools.h>
+#include <containers/bitvector.h>
+#include <objects/sparse_genotype.h>
 
 class bcf2binary {
 public:
