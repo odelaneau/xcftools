@@ -44,9 +44,9 @@ MACFILE=bin/$(NAME)_mac
 EXEFILE=bin/$(NAME)_static
 
 #CONDITIONAL PATH DEFINITON
-desktop: HTSSRC=/home/srubinac/git
-desktop: HTSLIB_INC=$(HTSSRC)/htslib-1.19
-desktop: HTSLIB_LIB=$(HTSSRC)/htslib-1.19/libhts.a
+desktop: HTSSRC=/usr/local/lib
+desktop: HTSLIB_INC=$(HTSSRC)/../include/htslib
+desktop: HTSLIB_LIB=$(HTSSRC)/libhts.a
 desktop: BOOST_INC=/usr/include
 desktop: BOOST_LIB_IO=/usr/local/lib/libboost_iostreams.a
 desktop: BOOST_LIB_PO=/usr/local/lib/libboost_program_options.a
@@ -62,9 +62,9 @@ olivier: $(BFILE)
 
 static_exe: CXXFLAG=-O3 -mavx2 -mfma -D__COMMIT_ID__=\"$(COMMIT_VERS)\" -D__COMMIT_DATE__=\"$(COMMIT_DATE)\"
 static_exe: LDFLAG=-O3
-static_exe: HTSSRC=/home/srubinac/git
-static_exe: HTSLIB_INC=$(HTSSRC)/htslib_minimal
-static_exe: HTSLIB_LIB=$(HTSSRC)/htslib_minimal/libhts.a
+static_exe: HTSSRC=/usr/local/lib
+static_exe: HTSLIB_INC=$(HTSSRC)/htslib
+static_exe: HTSLIB_LIB=$(HTSSRC)/libhts.a
 static_exe: BOOST_INC=/usr/include
 static_exe: BOOST_LIB_IO=/usr/local/lib/libboost_iostreams.a
 static_exe: BOOST_LIB_PO=/usr/local/lib/libboost_program_options.a
