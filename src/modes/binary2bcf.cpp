@@ -30,9 +30,10 @@
 
 using namespace std;
 
-binary2bcf::binary2bcf(string _region, int _nthreads) {
+binary2bcf::binary2bcf(string _region, int _nthreads, bool _drop_info) {
 	nthreads = _nthreads;
 	region = _region;
+	drop_info = _drop_info;
 }
 
 binary2bcf::~binary2bcf() {
@@ -62,7 +63,9 @@ void binary2bcf::convert(string finput, string foutput) {
 	xcf_writer XW(foutput, true, nthreads);
 
 	//Write header
-	XW.writeHeader(XR.sync_reader->readers[0].header, samples, string("XCFtools ") + string(XCFTLS_VERSION));
+	//XW.writeHeader(XR.sync_reader->readers[0].header, samples, string("XCFtools ") + string(XCFTLS_VERSION));
+	bcf1_t* rec = XW.hts_record;
+	XW.writeHeader(XR, std::string("XCFtools ") + std::string(XCFTLS_VERSION), !drop_info);
 
 	//Buffer for input/output
 	int32_t * input_buffer = (int32_t*)malloc(2 * nsamples * sizeof(int32_t));
@@ -73,10 +76,13 @@ void binary2bcf::convert(string finput, string foutput) {
 
 	//Proceed with conversion
 	uint32_t n_lines = 0;
-	while (XR.nextRecord()) {
-
+	while (XR.nextRecord())
+	{
 		//Copy over variant information
-		XW.writeInfo(XR.chr, XR.pos, XR.ref, XR.alt, XR.rsid, XR.getAC(), XR.getAN());
+		if (drop_info)
+			XW.writeInfo(XR.chr, XR.pos, XR.ref, XR.alt, XR.rsid, XR.getAC(), XR.getAN());
+		else
+			XW.hts_record = XR.sync_lines[0];
 
 		//Get type of record
 		type = XR.typeRecord(idx_file);
@@ -164,8 +170,9 @@ void binary2bcf::convert(string finput, string foutput) {
 	free(input_buffer);
 	free(output_buffer);
 
-	//Close files
-	XR.close();
-	XW.close();
-}
+	if (!drop_info) XW.hts_record = rec;
 
+	//Close files
+	XW.close();
+	XR.close();
+}

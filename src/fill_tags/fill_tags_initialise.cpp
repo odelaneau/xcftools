@@ -68,7 +68,17 @@ void fill_tags::prepare_output(const xcf_reader& XR, xcf_writer& XW,const uint32
 	vrb.print2("  * Writing header");
 	bcf_hdr_t* out_hdr = bcf_hdr_dup(XR.sync_reader->readers[idx_file].header);
 	hdr_append(out_hdr);
-	XW.writeHeader(out_hdr);
+	//XW.writeHeader(out_hdr);
+    {
+		XW.hts_hdr = bcf_hdr_dup(out_hdr);
+		bcf_hdr_add_sample(XW.hts_hdr, NULL);
+		//bcf_hdr_remove(hts_hdr, BCF_HL_FMT, NULL);
+		if (bcf_hdr_write(XW.hts_fd, XW.hts_hdr) < 0) helper_tools::error("Failing to write BCF/header");
+		if (!XW.hts_fidx.empty())
+			if (bcf_idx_init(XW.hts_fd, XW.hts_hdr, 14, XW.hts_fidx.c_str()))
+				helper_tools::error("Initializing .csi");
+		bcf_clear1(XW.hts_record);
+    }
 	bcf_hdr_destroy(out_hdr);
 	vrb.print(". Done. New header written successfully.");
 	if (!A.mOutOnlyBcf)

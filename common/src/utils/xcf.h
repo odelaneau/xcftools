@@ -756,27 +756,57 @@ public:
 		//close();
 	}
 
-	void writeHeaderRemoveSamples(bcf_hdr_t * hdr) //copy header, remove all samples //No FAM managment here
+	void writeHeader(const xcf_reader& XR, std::string source, const bool clone)
 	{
-		hts_hdr = bcf_hdr_subset(hdr, 0, NULL,NULL);
-		bcf_hdr_add_sample(hts_hdr, NULL);
-		bcf_hdr_remove(hts_hdr, BCF_HL_FMT, NULL);
-		if (bcf_hdr_write(hts_fd, hts_hdr) < 0) helper_tools::error("Failing to write BCF/header");
-		if (!hts_fidx.empty())
-			if (bcf_idx_init(hts_fd, hts_hdr, 14, hts_fidx.c_str()))
-				helper_tools::error("Initializing .csi");
-		bcf_clear1(hts_record);
-	}
+		const bcf_hdr_t * hdr = XR.sync_reader->readers[0].header;
+		if (clone)
+		{
+			hts_hdr = bcf_hdr_subset(hdr, 0, NULL,NULL);
+			bcf_hdr_add_sample(hts_hdr, NULL);
+			bcf_hdr_remove(hts_hdr, BCF_HL_FMT, NULL);
+			bcf_hdr_append(hts_hdr, std::string("##fileDate="+helper_tools::date()).c_str());
+			bcf_hdr_append(hts_hdr, std::string("##source=" + source).c_str());
+			bcf_hdr_append(hts_hdr, "##INFO=<ID=AC,Number=A,Type=Integer,Description=\"ALT allele count\">");
+			bcf_hdr_append(hts_hdr, "##INFO=<ID=AN,Number=1,Type=Integer,Description=\"Number of alleles\">");
+			if (hts_genotypes) bcf_hdr_append(hts_hdr, "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Phased genotypes\">");
+			else bcf_hdr_append(hts_hdr, "##INFO=<ID=SEEK,Number=4,Type=Integer,Description=\"SEEK binary file information\">");
+		}
+		else
+		{
+			hts_hdr = bcf_hdr_init("w");
+			bcf_hdr_append(hts_hdr, std::string("##fileDate="+helper_tools::date()).c_str());
+			bcf_hdr_append(hts_hdr, std::string("##source=" + source).c_str());
+		    bcf_idpair_t *ctg = hdr->id[BCF_DT_CTG];
+		    for (int idx_ctg = 0; idx_ctg < hdr->n[BCF_DT_CTG]; ++idx_ctg)
+		    {
+		    	std::string length = "";
+		    	if (ctg[idx_ctg].val->info[0] > 0) length = ",length=" + std::to_string(ctg[idx_ctg].val->info[0]);
+		    	bcf_hdr_append(hts_hdr, std::string("##contig=<ID="+ std::string(ctg[idx_ctg].key) + length + ">").c_str());
+		    }
+			bcf_hdr_append(hts_hdr, "##INFO=<ID=AC,Number=A,Type=Integer,Description=\"ALT allele count\">");
+			bcf_hdr_append(hts_hdr, "##INFO=<ID=AN,Number=1,Type=Integer,Description=\"Number of alleles\">");
+			if (hts_genotypes) bcf_hdr_append(hts_hdr, "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Phased genotypes\">");
+			else bcf_hdr_append(hts_hdr, "##INFO=<ID=SEEK,Number=4,Type=Integer,Description=\"SEEK binary file information\">");
+		}
 
-	void writeHeader(bcf_hdr_t * hdr) //copy header
-	{
-		hts_hdr = bcf_hdr_dup(hdr);
-		bcf_hdr_add_sample(hts_hdr, NULL);
-		//bcf_hdr_remove(hts_hdr, BCF_HL_FMT, NULL);
+		//Write sample IDs
+		if (hts_genotypes) {
+			//Samples are in BCF header
+			for (uint32_t i = 0 ; i < XR.ind_names[0].size() ; i++) bcf_hdr_add_sample(hts_hdr, XR.ind_names[0][i].c_str());
+			bcf_hdr_add_sample(hts_hdr, NULL);      // to update internal structures
+		} else {
+			//Samples are in PED file
+			std::string ffname = helper_tools::get_name_from_vcf(hts_fname) + ".fam";
+			std::ofstream fd (ffname);
+			if (!fd.is_open()) helper_tools::error("Cannot open [" + ffname + "] for writing");
+			for (uint32_t i = 0 ; i < XR.ind_names[0].size() ; i++) fd << XR.ind_names[0][i] << "\t"<< XR.ind_fathers[0][i] << "\t" << XR.ind_mothers[0][i] << "\t" << XR.ind_pops[0][i] << std::endl;
+			fd.close();
+		}
 		if (bcf_hdr_write(hts_fd, hts_hdr) < 0) helper_tools::error("Failing to write BCF/header");
 		if (!hts_fidx.empty())
 			if (bcf_idx_init(hts_fd, hts_hdr, 14, hts_fidx.c_str()))
 				helper_tools::error("Initializing .csi");
+
 		bcf_clear1(hts_record);
 	}
 
@@ -831,116 +861,8 @@ public:
 			if (bcf_idx_init(hts_fd, hts_hdr, 14, hts_fidx.c_str()))
 				helper_tools::error("Initializing .csi");
 		bcf_clear1(hts_record);
-
 	}
 
-	void writeHeaderClone(bcf_hdr_t * hdr, std::vector < std::string > & samples, std::string source) //copy header, remove all samples //No FAM managment here
-	{
-		hts_hdr = bcf_hdr_subset(hdr, 0, NULL,NULL);
-		bcf_hdr_add_sample(hts_hdr, NULL);
-		bcf_hdr_remove(hts_hdr, BCF_HL_FMT, NULL);
-		bcf_hdr_append(hts_hdr, std::string("##fileDate="+helper_tools::date()).c_str());
-		bcf_hdr_append(hts_hdr, std::string("##source=" + source).c_str());
-		bcf_hdr_append(hts_hdr, "##INFO=<ID=AC,Number=A,Type=Integer,Description=\"ALT allele count\">");
-		bcf_hdr_append(hts_hdr, "##INFO=<ID=AN,Number=1,Type=Integer,Description=\"Number of alleles\">");
-		if (hts_genotypes) bcf_hdr_append(hts_hdr, "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Phased genotypes\">");
-		else bcf_hdr_append(hts_hdr, "##INFO=<ID=SEEK,Number=4,Type=Integer,Description=\"SEEK binary file information\">");
-		//Write sample IDs
-		if (hts_genotypes) {
-			//Samples are in BCF header
-			for (uint32_t i = 0 ; i < samples.size() ; i++) bcf_hdr_add_sample(hts_hdr, samples[i].c_str());
-			bcf_hdr_add_sample(hts_hdr, NULL);      // to update internal structures
-		} else {
-			//Samples are in PED file
-			std::string ffname = helper_tools::get_name_from_vcf(hts_fname) + ".fam";
-			std::ofstream fd (ffname);
-			if (!fd.is_open()) helper_tools::error("Cannot open [" + ffname + "] for writing");
-			for (uint32_t i = 0 ; i < samples.size() ; i++) fd << samples[i] << "\tNA\tNA" << std::endl;
-			fd.close();
-		}
-
-		if (bcf_hdr_write(hts_fd, hts_hdr) < 0) helper_tools::error("Failing to write BCF/header");
-		if (!hts_fidx.empty())
-			if (bcf_idx_init(hts_fd, hts_hdr, 14, hts_fidx.c_str()))
-				helper_tools::error("Initializing .csi");
-		bcf_clear1(hts_record);
-	}
-
-	//Write sample IDs
-	void writeHeader(bcf_hdr_t * hdr, std::vector < std::string > & samples, std::string source)
-	{
-		//
-		hts_hdr = bcf_hdr_init("w");
-		bcf_hdr_append(hts_hdr, std::string("##fileDate="+helper_tools::date()).c_str());
-		bcf_hdr_append(hts_hdr, std::string("##source=" + source).c_str());
-	    bcf_idpair_t *ctg = hdr->id[BCF_DT_CTG];
-	    for (int idx_ctg = 0; idx_ctg < hdr->n[BCF_DT_CTG]; ++idx_ctg)
-	    {
-	    	std::string length = "";
-	    	if (ctg[idx_ctg].val->info[0] > 0) length = ",length=" + std::to_string(ctg[idx_ctg].val->info[0]);
-	    	bcf_hdr_append(hts_hdr, std::string("##contig=<ID="+ std::string(ctg[idx_ctg].key) + length + ">").c_str());
-	    }
-		bcf_hdr_append(hts_hdr, "##INFO=<ID=AC,Number=A,Type=Integer,Description=\"ALT allele count\">");
-		bcf_hdr_append(hts_hdr, "##INFO=<ID=AN,Number=1,Type=Integer,Description=\"Number of alleles\">");
-		if (hts_genotypes) bcf_hdr_append(hts_hdr, "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Phased genotypes\">");
-		else bcf_hdr_append(hts_hdr, "##INFO=<ID=SEEK,Number=4,Type=Integer,Description=\"SEEK binary file information\">");
-
-		//Write sample IDs
-		if (hts_genotypes) {
-			//Samples are in BCF header
-			for (uint32_t i = 0 ; i < samples.size() ; i++) bcf_hdr_add_sample(hts_hdr, samples[i].c_str());
-			bcf_hdr_add_sample(hts_hdr, NULL);      // to update internal structures
-		} else {
-			//Samples are in PED file
-			std::string ffname = helper_tools::get_name_from_vcf(hts_fname) + ".fam";
-			std::ofstream fd (ffname);
-			if (!fd.is_open()) helper_tools::error("Cannot open [" + ffname + "] for writing");
-			for (uint32_t i = 0 ; i < samples.size() ; i++) fd << samples[i] << "\tNA\tNA" << std::endl;
-			fd.close();
-		}
-		if (bcf_hdr_write(hts_fd, hts_hdr) < 0) helper_tools::error("Failing to write BCF/header");
-		if (!hts_fidx.empty())
-			if (bcf_idx_init(hts_fd, hts_hdr, 14, hts_fidx.c_str()))
-				helper_tools::error("Initializing .csi");
-
-		bcf_clear1(hts_record);
-	}
-
-	//Write sample IDs
-	void writeHeader(std::vector < std::string > & samples, std::vector < int > & fathers, std::vector < int > & mothers, std::string contig, std::string source) {
-		//
-		hts_hdr = bcf_hdr_init("w");
-		bcf_hdr_append(hts_hdr, std::string("##fileDate="+helper_tools::date()).c_str());
-		bcf_hdr_append(hts_hdr, std::string("##source=" + source).c_str());
-		bcf_hdr_append(hts_hdr, std::string("##contig=<ID="+ contig + ">").c_str());
-		bcf_hdr_append(hts_hdr, "##INFO=<ID=AC,Number=A,Type=Integer,Description=\"ALT allele count\">");
-		bcf_hdr_append(hts_hdr, "##INFO=<ID=AN,Number=1,Type=Integer,Description=\"Number of alleles\">");
-		if (hts_genotypes) bcf_hdr_append(hts_hdr, "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Phased genotypes\">");
-		else bcf_hdr_append(hts_hdr, "##INFO=<ID=SEEK,Number=4,Type=Integer,Description=\"SEEK binary file information\">");
-
-		//Write sample IDs
-		if (hts_genotypes) {
-			//Samples are in BCF header
-			for (uint32_t i = 0 ; i < samples.size() ; i++) bcf_hdr_add_sample(hts_hdr, samples[i].c_str());
-			bcf_hdr_add_sample(hts_hdr, NULL);      // to update internal structures
-		} else {
-			//Samples are in PED file
-			std::string ffname = helper_tools::get_name_from_vcf(hts_fname) + ".fam";
-			std::ofstream fd (ffname);
-			if (!fd.is_open()) helper_tools::error("Cannot open [" + ffname + "] for writing");
-			for (uint32_t i = 0 ; i < samples.size() ; i++) {
-				std::string sfather = (fathers[i]>=0)?samples[fathers[i]]:"NA";
-				std::string smother = (mothers[i]>=0)?samples[mothers[i]]:"NA";
-				fd << samples[i] << "\t" << sfather << "\t" << smother << std::endl;
-			}
-			fd.close();
-		}
-		if (bcf_hdr_write(hts_fd, hts_hdr) < 0) helper_tools::error("Failing to write VCF/header");
-		if (!hts_fidx.empty())
-			if (bcf_idx_init(hts_fd, hts_hdr, 14, hts_fidx.c_str()))
-				helper_tools::error("Initializing .csi");
-		bcf_clear1(hts_record);
-	}
 
 	//Write variant information
 	void writeInfo(std::string chr, uint32_t pos, std::string ref, std::string alt, std::string rsid, uint32_t AC, uint32_t AN) {

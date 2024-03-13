@@ -36,10 +36,11 @@ public:
 
 	//PARAM
 	std::string region;
+	bool drop_info;
 	int nthreads;
 
 	//CONSTRUCTORS/DESCTRUCTORS
-	binary2bcf(std::string, int);
+	binary2bcf(std::string, int, bool);
 	~binary2bcf();
 
 	//PROCESS
