@@ -33,48 +33,62 @@ public:
 	uint64_t n_bytes, n_elements;
 	char * bytes;
 
-	bitvector();
-	bitvector(uint32_t size);
-	~bitvector();
+	
+	bitvector() {
+		n_bytes = n_elements = 0;
+		bytes = NULL;
+	}
 
-	void allocate(uint32_t size);
-	void set(uint32_t idx, bool bit);
-	void setneg(uint32_t idx);
-	void set(bool bit);
-	bool get(uint32_t idx);
+	bitvector(uint32_t size) {
+		n_bytes = DIVU(size, 8);
+		n_elements = size;
+		bytes = (char*)malloc(n_bytes * sizeof(char));
+		memset(bytes, 0, n_bytes);
+	}
+
+	~bitvector() {
+		n_bytes = n_elements = 0;
+		if (bytes != NULL) free(bytes);
+		bytes = NULL;
+	}
+
+	void allocate(uint32_t size) {
+		n_bytes = DIVU(size, 8);
+		n_elements = size;
+		bytes = (char*)malloc(n_bytes * sizeof(char));
+		memset(bytes, 0, n_bytes);
+	}
+
+
+	inline void set(uint32_t idx, bool value) {
+		uint32_t idx_byt = idx / 8;
+		uint32_t idx_bit = idx % 8;
+		char mask = ~(1 << (7 - idx_bit));
+		this->bytes[idx_byt] &= mask;
+		this->bytes[idx_byt] |= (value << (7 - idx_bit));
+	}
+
+	inline void setneg(uint32_t idx) {
+		uint32_t idx_byt = idx / 8;
+		uint32_t idx_bit = idx % 8;
+		//char mask = ~(1 << (7 - idx_bit));
+		//this->bytes[idx_byt] &= mask;
+		//this->bytes[idx_byt] |= (get(idx) << (7 - idx_bit));
+		char mask = 1 << (7 - idx_bit);
+		this->bytes[idx_byt] ^= mask;
+	}
+
+	inline void set(const bool value) {
+		const char byte_value = value ? 0xFF : 0x00; // Set byte_value to 0xFF if value is true, otherwise 0x00
+		memset(bytes, byte_value, n_bytes);
+	}
+
+	inline bool get(uint32_t idx) {
+		uint32_t idx_byt = idx / 8;
+		uint32_t idx_bit = idx % 8;
+		return (this->bytes[idx_byt] >> (7 - (idx_bit%8))) & 1;
+	}
 };
 
-inline
-void bitvector::set(uint32_t idx, bool value) {
-	uint32_t idx_byt = idx / 8;
-	uint32_t idx_bit = idx % 8;
-	char mask = ~(1 << (7 - idx_bit));
-	this->bytes[idx_byt] &= mask;
-	this->bytes[idx_byt] |= (value << (7 - idx_bit));
-}
-
-inline
-void bitvector::setneg(uint32_t idx) {
-	uint32_t idx_byt = idx / 8;
-	uint32_t idx_bit = idx % 8;
-	//char mask = ~(1 << (7 - idx_bit));
-	//this->bytes[idx_byt] &= mask;
-	//this->bytes[idx_byt] |= (get(idx) << (7 - idx_bit));
-    char mask = 1 << (7 - idx_bit);
-    this->bytes[idx_byt] ^= mask;
-}
-
-inline
-void bitvector::set(const bool value) {
-    const char byte_value = value ? 0xFF : 0x00; // Set byte_value to 0xFF if value is true, otherwise 0x00
-    memset(bytes, byte_value, n_bytes);
-}
-
-inline
-bool bitvector::get(uint32_t idx) {
-	uint32_t idx_byt = idx / 8;
-	uint32_t idx_bit = idx % 8;
-	return (this->bytes[idx_byt] >> (7 - (idx_bit%8))) & 1;
-}
 
 #endif

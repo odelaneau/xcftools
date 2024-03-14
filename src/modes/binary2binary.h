@@ -2,9 +2,8 @@
 #define BINARY2BINARY_H_
 
 #include <utils/otools.h>
-#include <containers/bitvector.h>
-#include <objects/sparse_genotype.h>
 #include <utils/xcf.h>
+#include <utils/bitvector.h>
 
 
 #define CONV_BCF_BG	0

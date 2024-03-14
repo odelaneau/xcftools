@@ -24,9 +24,8 @@
 
 #include <modes/binary2bcf.h>
 #include <utils/xcf.h>
-
-#include <containers/bitvector.h>
-#include <objects/sparse_genotype.h>
+#include <utils/bitvector.h>
+#include <utils/sparse_genotype.h>
 
 using namespace std;
 
@@ -70,6 +69,9 @@ void binary2bcf::convert(string finput, string foutput) {
 
 	//Buffer for binary data
 	bitvector binary_buffer = bitvector(2 * nsamples);
+
+	//Buffer for phase probs
+	float * probabilities = (float*)malloc(nsamples * sizeof(float));
 
 	//Proceed with conversion
 	uint32_t n_lines = 0;
@@ -143,6 +145,8 @@ void binary2bcf::convert(string finput, string foutput) {
 			//Loop over sparse genotypes
 			for(uint32_t r = 0 ; r < n_elements ; r++) output_buffer[input_buffer[r]] = bcf_gt_phased(!major);
 		}
+
+		//Convert from 
 
 		//Unknown record type
 		else vrb.bullet("Unrecognized record type [" + stb.str(type) + "] at " + XR.chr + ":" + stb.str(XR.pos));

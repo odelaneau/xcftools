@@ -49,7 +49,8 @@ extern "C" {
 #define RECORD_SPARSE_HAPLOTYPE	3		//Record in sparse haplotype format (uint32_t for indexing)
 #define RECORD_BINARY_GENOTYPE	4		//Record in binary genotype format (2bits per genotype; 10 for missing)
 #define RECORD_BINARY_HAPLOTYPE	5		//Record in binary haplotype format (1bit per allele; no missing allowed)
-#define RECORD_NUMBER_TYPES		6
+#define RECORD_SPARSE_PHASEPROBS 6		//Extension of sparse genotype format that includes the float (see [rare/sparse]_genotype.h)
+#define RECORD_NUMBER_TYPES		7
 
 #define MOD30BITS			0x40000000
 
