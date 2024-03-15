@@ -30,8 +30,10 @@ ifeq ($(RMATH_SUPPORT),YES)
 	CXXFLAG+= -D__RMATH_LIB__ -I$(RMATH_INC)
 endif
 
-#DYNAMIC LIBRARIES
-DYN_LIBS=-lz -lpthread -lbz2 -llzma -lcurl -lcrypto -ldeflate
+# DYNAMIC LIBRARIES # Standard libraries are still dynamic in static exe
+DYN_LIBS_FOR_STATIC=-lz -lpthread -lbz2 -llzma -lcrypto -ldeflate -lcurl
+# Non static exe links with all libraries
+DYN_LIBS=$(DYN_LIBS_FOR_STATIC) -lboost_iostreams -lboost_program_options -lhts
 
 HFILE=$(shell find src -name *.h)
 CFILE=$(shell find src -name *.cpp)
@@ -43,13 +45,52 @@ BFILE=bin/$(NAME)
 MACFILE=bin/$(NAME)_mac
 EXEFILE=bin/$(NAME)_static
 
+# Only search for libraries if goals != clean
+ifeq (,$(filter clean,$(MAKECMDGOALS)))
+
+#################################
+# HTSLIB for static compilation #
+#################################
+# These are the default paths when installing htslib from source
+HTSSRC=/usr/local
+HTSLIB_INC=$(HTSSRC)/include/htslib
+HTSLIB_LIB=$(HTSSRC)/lib/libhts.a
+
+##########################################
+# Boost libraries for static compilation #
+##########################################
+BOOST_INC=/usr/include
+
+# If not set by user command, search for it
+BOOST_LIB_IO?=$(shell whereis libboost_iostreams | grep -o '\S*\.a\b')
+ifneq ($(suffix $(BOOST_LIB_IO)),.a)
+    # If not found check default path
+    ifeq ($(wildcard /usr/local/lib/libboost_iostreams.a),)
+        # File does not exist
+        $(warning libboost_iostreams.a not found, you can specify it with "make BOOST_LIB_IO=/path/to/lib...")
+    else
+        # File exists, set the variable
+        BOOST_LIB_IO=/usr/local/lib/libboost_iostreams.a
+    endif
+endif
+
+# If not set by user command, search for it
+BOOST_LIB_PO?=$(shell whereis libboost_program_options | grep -o '\S*\.a\b')
+ifneq ($(suffix $(BOOST_LIB_PO)),.a)
+    # If not found check default path
+    ifeq ($(wildcard /usr/local/lib/libboost_program_options.a),)
+        # File does not exist
+        $(warning libboost_program_options.a not found, you can specify it with "make BOOST_LIB_PO=/path/to/lib...")
+    else
+        # File exists, set the variable
+        BOOST_LIB_PO=/usr/local/lib/libboost_program_options.a
+    endif
+endif
+
+# Endif makefile goals != clean
+endif
+
 #CONDITIONAL PATH DEFINITON
-desktop: HTSSRC=/home/srubinac/git
-desktop: HTSLIB_INC=$(HTSSRC)/htslib-1.19
-desktop: HTSLIB_LIB=$(HTSSRC)/htslib-1.19/libhts.a
-desktop: BOOST_INC=/usr/include
-desktop: BOOST_LIB_IO=/usr/local/lib/libboost_iostreams.a
-desktop: BOOST_LIB_PO=/usr/local/lib/libboost_program_options.a
 desktop: $(BFILE)
 
 olivier: HTSSRC=$(HOME)/Tools
@@ -62,12 +103,6 @@ olivier: $(BFILE)
 
 static_exe: CXXFLAG=-O3 -mavx2 -mfma -D__COMMIT_ID__=\"$(COMMIT_VERS)\" -D__COMMIT_DATE__=\"$(COMMIT_DATE)\"
 static_exe: LDFLAG=-O3
-static_exe: HTSSRC=/home/srubinac/git
-static_exe: HTSLIB_INC=$(HTSSRC)/htslib_minimal
-static_exe: HTSLIB_LIB=$(HTSSRC)/htslib_minimal/libhts.a
-static_exe: BOOST_INC=/usr/include
-static_exe: BOOST_LIB_IO=/usr/local/lib/libboost_iostreams.a
-static_exe: BOOST_LIB_PO=/usr/local/lib/libboost_program_options.a
 static_exe: $(EXEFILE)
 
 # static desktop Robin
@@ -102,10 +137,10 @@ $(MACFILE): $(OFILE)
 	$(CXX) $(LDFLAG) $^ $(HTSLIB_LIB) $(BOOST_LIB_IO) $(BOOST_LIB_PO) -o $@ $(DYN_LIBS)
 
 $(BFILE): $(OFILE)
-	$(CXX) $(LDFLAG) $^ $(HTSLIB_LIB) $(BOOST_LIB_IO) $(BOOST_LIB_PO) -o $@ $(DYN_LIBS)
+	$(CXX) $(LDFLAG) $^ -o $@ $(DYN_LIBS)
 
 $(EXEFILE): $(OFILE)
-	$(CXX) $(LDFLAG) -static -static-libgcc -static-libstdc++ -pthread -o $(EXEFILE) $^ $(HTSLIB_LIB) $(BOOST_LIB_IO) $(BOOST_LIB_PO) -Wl,-Bstatic $(DYN_LIBS)
+	$(CXX) $(LDFLAG) -static -static-libgcc -static-libstdc++ -pthread -o $(EXEFILE) $^ $(HTSLIB_LIB) $(BOOST_LIB_IO) $(BOOST_LIB_PO) -Wl,-Bstatic $(DYN_LIBS_FOR_STATIC)
 
 obj/%.o: %.cpp $(HFILE)
 	$(CXX) $(CXXFLAG) -c $< -o $@ -Isrc -I$(HTSLIB_INC) -I$(BOOST_INC)
