@@ -88,8 +88,9 @@ void binary2binary::convert(std::string finput, std::string foutput)
 	xcf_writer XW(foutput, false, nthreads);
 	bcf1_t* rec = XW.hts_record;
 
-	if (drop_info) XW.writeHeader(XR.sync_reader->readers[0].header, XR.ind_names[idx_file], std::string("XCFtools ") + std::string(XCFTLS_VERSION));
-	else XW.writeHeaderClone(XR.sync_reader->readers[0].header,XR.ind_names[idx_file], std::string("XCFtools ") + std::string(XCFTLS_VERSION));
+	//if (drop_info) XW.writeHeader(XR.sync_reader->readers[0].header, XR.ind_names[idx_file], std::string("XCFtools ") + std::string(XCFTLS_VERSION));
+	//else XW.writeHeaderClone(XR.sync_reader->readers[0].header,XR.ind_names[idx_file], std::string("XCFtools ") + std::string(XCFTLS_VERSION));
+	XW.writeHeader(XR, std::string("XCFtools ") + std::string(XCFTLS_VERSION), !drop_info);
 
 	binary_bit_buf.allocate(2 * nsamples_input);
 	sparse_int_buf.resize(2 * nsamples_input,0);

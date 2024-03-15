@@ -21,7 +21,7 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#ifndef _OLIVIER_TOOLS_H
+#ifndef _OLIVIER_TOOLS_H //redefined to this name due to XCF stuff
 #define _OLIVIER_TOOLS_H
 
 //INCLUDE STANDARD TEMPLATE LIBRARY USEFULL STUFFS (STL)

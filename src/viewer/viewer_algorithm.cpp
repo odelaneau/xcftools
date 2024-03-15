@@ -30,7 +30,7 @@ using namespace std;
 
 void viewer::view()
 {
-	if (isBCF(format) && !input_fmt_bcf) binary2bcf (region, nthreads).convert(finput, foutput);
+	if (isBCF(format) && !input_fmt_bcf) binary2bcf (region, nthreads, drop_info).convert(finput, foutput);
 
     int conversion_type = -1;
     if (format == "bg") conversion_type = CONV_BCF_BG;

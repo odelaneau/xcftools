@@ -74,8 +74,9 @@ void bcf2binary::convert(string finput, string foutput) {
 	bcf1_t* rec = XW.hts_record;
 
 	//Write header
-	if (drop_info) XW.writeHeader(XR.sync_reader->readers[0].header, samples, string("XCFtools ") + string(XCFTLS_VERSION));
-	else XW.writeHeaderClone(XR.sync_reader->readers[0].header,samples, string("XCFtools ") + string(XCFTLS_VERSION));
+	//if (drop_info) XW.writeHeader(XR.sync_reader->readers[0].header, samples, string("XCFtools ") + string(XCFTLS_VERSION));
+	//else XW.writeHeaderClone(XR.sync_reader->readers[0].header,samples, string("XCFtools ") + string(XCFTLS_VERSION));
+	XW.writeHeader(XR, string("XCFtools ") + string(XCFTLS_VERSION), !drop_info);
 	//XW.writeHeader(XR.sync_reader->readers[0].header, samples, string("XCFtools ") + string(XCFTLS_VERSION));
 
 	//Allocate input/output buffer
