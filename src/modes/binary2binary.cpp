@@ -349,7 +349,7 @@ void binary2binary::convert(std::string finput, std::string foutput, const bool 
 	xcf_writer XW(foutput, false, nthreads);
 	bcf1_t* rec = XW.hts_record;
 
-	XW.writeHeaderSubsample(XR.sync_reader->readers[0].header, XR, subs2full, std::string("XCFtools ") + std::string(XCFTLS_VERSION), !drop_info);
+	XW.writeHeader(XR, subs2full, std::string("XCFtools ") + std::string(XCFTLS_VERSION), !drop_info);
 
 	binary_bit_buf.allocate(2 * nsamples_input);
 	sparse_int_buf.resize(2 * nsamples_input,0);
