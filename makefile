@@ -134,7 +134,7 @@ mac_apple_silicon_static: $(MACFILE)
 all: desktop
 
 $(MACFILE): $(OFILE)
-	$(CXX) $(LDFLAG) $^ $(HTSLIB_LIB) $(BOOST_LIB_IO) $(BOOST_LIB_PO) -o $@ $(DYN_LIBS)
+	$(CXX) $(LDFLAG) $^ $(HTSLIB_LIB) $(BOOST_LIB_IO) $(BOOST_LIB_PO) -o $@
 
 $(BFILE): $(OFILE)
 	$(CXX) $(LDFLAG) $^ -o $@ $(DYN_LIBS)
