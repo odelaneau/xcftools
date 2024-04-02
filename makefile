@@ -37,7 +37,7 @@ endif
 # DYNAMIC LIBRARIES # Standard libraries are still dynamic in static exe
 DYN_LIBS_FOR_STATIC=-lz -lpthread -lbz2 -llzma -lcrypto -ldeflate -lcurl
 # Non static exe links with all libraries
-DYN_LIBS= -lboost_iostreams -lboost_program_options -lhts -lpthread
+DYN_LIBS= -lboost_iostreams -lboost_program_options -lhts -pthread
 
 HFILE=$(shell find src -name *.h)
 CFILE=$(shell find src -name *.cpp)
