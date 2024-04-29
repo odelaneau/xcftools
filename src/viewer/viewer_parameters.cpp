@@ -40,8 +40,7 @@ void viewer::declare_options() {
 			("maf,m", bpo::value< float >()->default_value(0.001), "Threshold to distinguish rare variants from common ones")
 			("samples,s", bpo::value< string >(), "XCF2XCF only: comma separated list of samples to include (or exclude with \"^\" prefix)")
 			("samples-file,S", bpo::value< string >(), "XCF2XCF only: File of samples to include (or exclude with \"^\" prefix)")
-			("force-samples", "Only warn about unknown subset samples")
-			;
+			("force-samples", "Only warn about unknown subset samples");
 
 	bpo::options_description opt_output ("Output files");
 	opt_output.add_options()

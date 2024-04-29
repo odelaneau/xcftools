@@ -1,5 +1,5 @@
-#COMPILER MODE C++17
-CXX=g++ -std=c++17
+#COMPILER MODE C++20
+CXX=g++ -std=c++20
 
 
 #create folders
@@ -31,7 +31,7 @@ ifeq ($(RMATH_SUPPORT),YES)
 endif
 
 # DYNAMIC LIBRARIES # Standard libraries are still dynamic in static exe
-DYN_LIBS_FOR_STATIC=-lz -lpthread -lbz2 -llzma -lcrypto -ldeflate -lcurl
+DYN_LIBS_FOR_STATIC=-lz -lpthread -lbz2 -llzma -lcrypto -ldeflate -lcurl -ldeflate
 # Non static exe links with all libraries
 DYN_LIBS=$(DYN_LIBS_FOR_STATIC) -lboost_iostreams -lboost_program_options -lhts
 
