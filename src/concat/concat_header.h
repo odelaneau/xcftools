@@ -29,7 +29,7 @@
 
 #include <utils/otools.h>
 #include <utils/xcf.h>
-#include <containers/bitvector.h>
+#include <utils/bitvector.h>
 
 class concat {
 public:

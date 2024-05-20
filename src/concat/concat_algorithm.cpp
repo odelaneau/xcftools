@@ -183,7 +183,18 @@ void concat::concat_naive_check_headers(xcf_writer& XW, const std::string& fname
     if ( hdr0 ) bcf_hdr_destroy(hdr0);
 
     i=0;
-    XW.writeHeader(out_hdr);
+    //XW.writeHeader(out_hdr);
+    {
+		XW.hts_hdr = bcf_hdr_dup(out_hdr);
+		bcf_hdr_add_sample(XW.hts_hdr, NULL);
+		//bcf_hdr_remove(hts_hdr, BCF_HL_FMT, NULL);
+		if (bcf_hdr_write(XW.hts_fd, XW.hts_hdr) < 0) helper_tools::error("Failing to write BCF/header");
+		if (!XW.hts_fidx.empty())
+			if (bcf_idx_init(XW.hts_fd, XW.hts_hdr, 14, XW.hts_fidx.c_str()))
+				helper_tools::error("Initializing .csi");
+		bcf_clear1(XW.hts_record);
+    }
+
     if (out_hdr) bcf_hdr_destroy(out_hdr);
 
     vrb.print(". Done, they are compatible. \t(" + stb.str(tac.rel_time()*1.0/1000, 2) + "s)");;
@@ -292,7 +303,18 @@ void concat::concat_ligate()
 	//BIT BUFFER ALLOCATION
 	haps_bitvector.allocate(2 * nsamples);
 
-	XW.writeHeader(out_hdr);
+	//XW.writeHeader(out_hdr);
+    {
+		XW.hts_hdr = bcf_hdr_dup(out_hdr);
+		bcf_hdr_add_sample(XW.hts_hdr, NULL);
+		//bcf_hdr_remove(hts_hdr, BCF_HL_FMT, NULL);
+		if (bcf_hdr_write(XW.hts_fd, XW.hts_hdr) < 0) helper_tools::error("Failing to write BCF/header");
+		if (!XW.hts_fidx.empty())
+			if (bcf_idx_init(XW.hts_fd, XW.hts_hdr, 14, XW.hts_fidx.c_str()))
+				helper_tools::error("Initializing .csi");
+		bcf_clear1(XW.hts_record);
+    }
+
 	if (!std::filesystem::exists(stb.remove_extension(filenames[i]) + ".fam")) vrb.error("File does not exists: " + stb.remove_extension(filenames[i]) + "fam");
 	std::ifstream fam_ifile(stb.remove_extension(filenames[i]) + ".fam");
 	std::ofstream fam_ofile(stb.remove_extension(fname) + ".fam");

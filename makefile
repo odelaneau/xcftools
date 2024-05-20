@@ -1,5 +1,5 @@
-#COMPILER MODE C++17
-CXX=g++ -std=c++17
+#COMPILER MODE C++20
+CXX=g++ -std=c++20
 
 
 #create folders
@@ -35,7 +35,7 @@ ifeq ($(RMATH_SUPPORT),YES)
 endif
 
 # DYNAMIC LIBRARIES # Standard libraries are still dynamic in static exe
-DYN_LIBS_FOR_STATIC=-lz -lpthread -lbz2 -llzma -lcrypto -ldeflate -lcurl
+DYN_LIBS_FOR_STATIC=-lz -lpthread -lbz2 -llzma -lcrypto -ldeflate -lcurl -ldeflate
 # Non static exe links with all libraries
 DYN_LIBS= -lboost_iostreams -lboost_program_options -lhts -pthread
 
@@ -105,8 +105,16 @@ olivier: BOOST_LIB_IO=/usr/lib/x86_64-linux-gnu/libboost_iostreams.a
 olivier: BOOST_LIB_PO=/usr/lib/x86_64-linux-gnu/libboost_program_options.a
 olivier: $(BFILE)
 
-static_exe: CXXFLAGS=-O3 -mavx2 -mfma -D__COMMIT_ID__=\"$(COMMIT_VERS)\" -D__COMMIT_DATE__=\"$(COMMIT_DATE)\"
-static_exe: LDFLAGS=-O3
+rgc: HTSSRC=/mnt/efs_v2/agds_methods/users/olivier.delaneau/LIBS
+rgc: HTSLIB_INC=$(HTSSRC)/htslib-1.18
+rgc: HTSLIB_LIB=$(HTSSRC)/htslib-1.18/libhts.a
+rgc: BOOST_INC=/usr/include
+rgc: BOOST_LIB_IO=/usr/lib/x86_64-linux-gnu/libboost_iostreams.a
+rgc: BOOST_LIB_PO=/usr/lib/x86_64-linux-gnu/libboost_program_options.a
+rgc: $(BFILE)
+
+static_exe: CXXFLAG=-O3 -mavx2 -mfma -D__COMMIT_ID__=\"$(COMMIT_VERS)\" -D__COMMIT_DATE__=\"$(COMMIT_DATE)\"
+static_exe: LDFLAG=-O3
 static_exe: $(EXEFILE)
 
 # static desktop Robin
