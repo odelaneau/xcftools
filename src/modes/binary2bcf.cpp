@@ -132,6 +132,7 @@ void binary2bcf::convert(string finput, string foutput) {
 			for(uint32_t r = 0 ; r < n_elements ; r++) {
 				sparse_genotype rg;
 				rg.set(input_buffer[r]);
+                assert(rg.idx < nsamples);
 				if (rg.mis) {
 					output_buffer[2*rg.idx+0] = bcf_gt_missing;
 					output_buffer[2*rg.idx+1] = bcf_gt_missing;
@@ -156,6 +157,7 @@ void binary2bcf::convert(string finput, string foutput) {
 				sparse_genotype rg;
 				rg.set(input_buffer[2*r+0]);
 				probabilities[r] = bit_cast<float>(input_buffer[2*r+1]);
+				assert(rg.idx < nsamples);
 				if (rg.mis) {
 					output_buffer[2*rg.idx+0] = bcf_gt_missing;
 					output_buffer[2*rg.idx+1] = bcf_gt_missing;
@@ -177,7 +179,11 @@ void binary2bcf::convert(string finput, string foutput) {
 			bool major = (XR.getAF()>0.5f);
 			std::fill(output_buffer, output_buffer+2*nsamples, bcf_gt_phased(major));
 			//Loop over sparse genotypes
-			for(uint32_t r = 0 ; r < n_elements ; r++) output_buffer[input_buffer[r]] = bcf_gt_phased(!major);
+			for(uint32_t r = 0 ; r < n_elements ; r++)
+			{
+				assert(input_buffer[r] < 2*nsamples);
+				output_buffer[input_buffer[r]] = bcf_gt_phased(!major);
+			}
 		}
 
 		//Unknown record type
@@ -197,6 +203,7 @@ void binary2bcf::convert(string finput, string foutput) {
 	vrb.bullet("Number of XCF records processed: N = " + stb.str(n_lines));
 
 	//Free
+	free(probabilities);
 	free(input_buffer);
 	free(output_buffer);
 

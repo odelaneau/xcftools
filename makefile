@@ -9,6 +9,8 @@ dummy_build_folder_obj := $(shell mkdir -p obj)
 #COMPILER & LINKER FLAGS
 CXXFLAGS+= -O3
 LDFLAGS+= -O3
+#CXXFLAGS+= -O0 -g
+#LDFLAGS+= -O0
 
 # Test if on x86 and target Haswell & newer.
 # Disable this if building on x86 CPUs without AVX2 support.
@@ -35,9 +37,9 @@ ifeq ($(RMATH_SUPPORT),YES)
 endif
 
 # DYNAMIC LIBRARIES # Standard libraries are still dynamic in static exe
-DYN_LIBS_FOR_STATIC=-lz -lpthread -lbz2 -llzma -lcrypto -ldeflate -lcurl -ldeflate
+DYN_LIBS_FOR_STATIC=-lz -lpthread -lbz2 -llzma -lcrypto -ldeflate
 # Non static exe links with all libraries
-DYN_LIBS= -lboost_iostreams -lboost_program_options -lhts -pthread
+DYN_LIBS= -lboost_iostreams -lboost_program_options -lhts -pthread -lcurl -ldeflate
 
 HFILE=$(shell find src -name *.h)
 CFILE=$(shell find src -name *.cpp)
@@ -113,20 +115,12 @@ rgc: BOOST_LIB_IO=/usr/lib/x86_64-linux-gnu/libboost_iostreams.a
 rgc: BOOST_LIB_PO=/usr/lib/x86_64-linux-gnu/libboost_program_options.a
 rgc: $(BFILE)
 
+static_exe: HTSSRC=/home/srubinac/git
+static_exe: HTSLIB_INC=$(HTSSRC)/htslib_minimal
+static_exe: HTSLIB_LIB=$(HTSSRC)/htslib_minimal/libhts.a
 static_exe: CXXFLAG=-O3 -mavx2 -mfma -D__COMMIT_ID__=\"$(COMMIT_VERS)\" -D__COMMIT_DATE__=\"$(COMMIT_DATE)\"
 static_exe: LDFLAG=-O3
 static_exe: $(EXEFILE)
-
-# static desktop Robin
-static_exe_robin_desktop: CXXFLAGS=-O2 -mavx2 -mfma -D__COMMIT_ID__=\"$(COMMIT_VERS)\" -D__COMMIT_DATE__=\"$(COMMIT_DATE)\"
-static_exe_robin_desktop: LDFLAGS=-O2
-static_exe_robin_desktop: HTSSRC=/home/robin/Dropbox/LIB
-static_exe_robin_desktop: HTSLIB_INC=$(HTSSRC)/htslib_minimal
-static_exe_robin_desktop: HTSLIB_LIB=$(HTSSRC)/htslib_minimal/libhts.a
-static_exe_robin_desktop: BOOST_INC=/usr/include
-static_exe_robin_desktop: BOOST_LIB_IO=$(HTSSRC)/boost/lib/libboost_iostreams.a
-static_exe_robin_desktop: BOOST_LIB_PO=$(HTSSRC)/boost/lib/libboost_program_options.a
-static_exe_robin_desktop: $(EXEFILE)
 
 #COMPILATION RULES
 all: desktop

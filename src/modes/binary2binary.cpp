@@ -210,8 +210,13 @@ void binary2binary::convert(std::string finput, std::string foutput, const bool 
 	assert(!smpls.empty());
 	tac.clock();
 
-	xcf_reader XR(1);
-	const uint32_t idx_file = XR.addFile(finput);
+	vrb.title("Converting from XCF to XCF");
+	if (region.empty()) vrb.bullet("Region        : All");
+	else vrb.bullet("Region        : " + stb.str(region));
+
+	//Opening XCF reader for input
+	xcf_reader XR(region, nthreads);
+	int32_t idx_file = XR.addFile(finput);
 	const int32_t typef = XR.typeFile(idx_file);
 	if (typef != FILE_BINARY) vrb.error("[" + finput + "] is not a XCF file");
 	uint32_t nsamples_input = XR.ind_names[idx_file].size();
@@ -251,6 +256,15 @@ void binary2binary::convert(std::string finput, std::string foutput, const bool 
 			sample_mothers.push_back(XR.ind_mothers[idx_file][i]);
 			sample_pops.push_back(XR.ind_pops[idx_file][i]);
 
+            int32_t full_index = (mode == CONV_BCF_BG || mode == CONV_BCF_SG) ? i : i * 2;
+            subs2full.push_back(full_index);
+            full2subs[full_index] = subs2full.size() - 1;
+            if (mode!=CONV_BCF_BG && mode!=CONV_BCF_SG)
+            {
+                subs2full.push_back(full_index+1);
+                full2subs[full_index+1] = subs2full.size() - 1;
+            }
+			/*
 			if (mode==CONV_BCF_BG || mode==CONV_BCF_SG)
 			{
 				subs2full.push_back(i);
@@ -263,6 +277,7 @@ void binary2binary::convert(std::string finput, std::string foutput, const bool 
 				subs2full.push_back(i*2+1);
 				full2subs[i*2+1] = subs2full.size()-1;
 			}
+			*/
 		}
 	}
 	else
@@ -296,6 +311,16 @@ void binary2binary::convert(std::string finput, std::string foutput, const bool 
 			sample_mothers.push_back(XR.ind_mothers[idx_file][*it]);
 			sample_pops.push_back(XR.ind_pops[idx_file][*it]);
 
+            int32_t full_index = (mode == CONV_BCF_BG || mode == CONV_BCF_SG) ? *it : (*it) * 2;
+            subs2full.push_back(full_index);
+            full2subs[full_index] = subs2full.size() - 1;
+            //vrb.print(stb.str(full_index) + " - " + stb.str(subs2full.size() - 1));
+            if (mode!=CONV_BCF_BG && mode!=CONV_BCF_SG)
+            {
+                subs2full.push_back(full_index+1);
+                full2subs[full_index+1] = subs2full.size() - 1;
+            }
+            /*
 			if (mode==CONV_BCF_BG || mode==CONV_BCF_SG)
 			{
 				subs2full.push_back(*it);
@@ -307,6 +332,7 @@ void binary2binary::convert(std::string finput, std::string foutput, const bool 
 				full2subs[(*it)*2+0] = 2*(subs2full.size()-1)+0;
 				full2subs[(*it)*2+1] = 2*(subs2full.size()-1)+1;
 			}
+			*/
 	    }
 	}
 	if (sample_names.empty())
@@ -320,6 +346,8 @@ void binary2binary::convert(std::string finput, std::string foutput, const bool 
 		convert(finput, foutput);
 		return;
 	}
+
+	vrb.bullet("#samples to subsample = " + stb.str(sample_names.size()));
 
 	subsample_bit.allocate(2*nsamples_input);
 	for (auto i=0; i<subs2full.size(); ++i)
@@ -373,12 +401,13 @@ void binary2binary::convert(std::string finput, std::string foutput, const bool 
 		{
 			for (auto i=0; i<n_elements_full;++i)
 			{
-				if (subsample_bit.get(sparse_int_buf[i]))
+				sparse_genotype rg = sparse_genotype(sparse_int_buf[i]);
+				if (subsample_bit.get(rg.idx))
 				{
-					sparse_genotype rg = sparse_genotype(sparse_int_buf[i]);
 					rg.idx = full2subs[rg.idx];
-					sparse_int_buf[n_elements_subs++] = rg.get();
-					if (!rg.mis) ac+=rg.al0 + rg.al1;
+					sparse_int_buf_subs[n_elements_subs++] = rg.get();
+					if (rg.mis) continue;
+					ac+=rg.al0 + rg.al1;
 				}
 			}
 		}
@@ -402,12 +431,13 @@ void binary2binary::convert(std::string finput, std::string foutput, const bool 
 				{
 					const bool a0 = binary_bit_buf.get(2*i+0);
 					const bool a1 = binary_bit_buf.get(2*i+1);
-					binary_bit_buf_subs.set(full2subs[2*i+0], a0);
-					binary_bit_buf_subs.set(full2subs[2*i+1], a1);
-					if (!a0 || a1) ac+=a0+a1;
+					binary_bit_buf_subs.set(2*full2subs[i]+0, a0);
+					binary_bit_buf_subs.set(2*full2subs[i]+1, a1);
+					if (a0 && !a1) continue;
+					ac+=(a0+a1);
 				}
 			}
-			n_elements_subs=2*sample_names.size();
+			n_elements_subs=sample_names.size();
 		}
 		else if (type==RECORD_BINARY_HAPLOTYPE)
 		{
@@ -426,6 +456,10 @@ void binary2binary::convert(std::string finput, std::string foutput, const bool 
 			n_elements_subs=2*sample_names.size();
 		}
 
+		if (!minor_full && (type==RECORD_SPARSE_HAPLOTYPE || type==RECORD_SPARSE_GENOTYPE))
+		{
+			ac = 2*sample_names.size()-ac;
+		}
 		float af =  (float) ac / (2*sample_names.size());
 		float maf = std::min(af, 1.0f-af);
 		bool rare = (maf < minmaf);
@@ -439,19 +473,47 @@ void binary2binary::convert(std::string finput, std::string foutput, const bool 
 		//Write record
 		if (mode == CONV_BCF_SG && rare)
 		{
-			if (type==RECORD_SPARSE_GENOTYPE)
+			if (type==RECORD_SPARSE_GENOTYPE)//we don't handle conversion //TODO
+			{
+				if (minor!=minor_full) //ouch! need to switch them all.
+				{
+					std::vector<int32_t> rev_sparse_int_bug(n_elements_subs);
+					std::copy(sparse_int_buf_subs.begin(), sparse_int_buf_subs.begin()+n_elements_subs, rev_sparse_int_bug.begin());
+					int32_t nextExpected = 0; // Initialize the next expected element to 0
+					int32_t i=0;
+					for (int32_t j=0; j<n_elements_subs; ++j)
+					{
+						sparse_genotype rg(rev_sparse_int_bug[j]);
+						while (nextExpected < rg.idx)
+						{
+							sparse_int_buf_subs[i++] = sparse_genotype(nextExpected, false, false, minor, minor, 0).get();
+							++nextExpected;
+						}
+						if (rg.mis || rg.het)
+							sparse_int_buf_subs[i++] = rg.get();
+
+						++nextExpected;
+					}
+					while (nextExpected < 2*sample_names.size())
+					{
+						sparse_int_buf_subs[i++] = sparse_genotype(nextExpected, false, false, minor, minor, 0).get();//nextExpected;
+						++nextExpected;
+					}
+					n_elements_subs=i;
+				}
 				XW.writeRecord(RECORD_SPARSE_GENOTYPE, reinterpret_cast<char*>(sparse_int_buf_subs.data()), n_elements_subs * sizeof(int32_t));
+			}
 			else if (type==RECORD_BINARY_GENOTYPE)
 			{
-				//conversion: BINARY gen -> sparse
 				const int32_t n_buf_elements = n_elements_subs;
 				n_elements_subs=0;
-				for(uint32_t i = 0 ; i < n_buf_elements ; i++)
-				{
+				for (size_t i = 0; i < n_buf_elements; ++i)
+			    {
 					const bool a0 = binary_bit_buf_subs.get(2*i+0);
 					const bool a1 = binary_bit_buf_subs.get(2*i+1);
-					sparse_int_buf_subs[n_elements_subs++] = sparse_genotype(i, (a0!=a1), (a0 && !a1), a0, a1, 0).get();
-				}
+			        if ((a0 && !a1) || a0 == minor || a1 == minor) //Binary to sparse. We use current minor.
+			        	sparse_int_buf_subs[n_elements_subs++] = sparse_genotype(i, (a0!=a1), (a0 && !a1), a0, a1, 0).get();//i;
+			    }
 				XW.writeRecord(RECORD_SPARSE_GENOTYPE, reinterpret_cast<char*>(sparse_int_buf_subs.data()), n_elements_subs * sizeof(int32_t));
 			}
 			else vrb.error("Converting non-genotype type to genotype type!");
@@ -498,39 +560,40 @@ void binary2binary::convert(std::string finput, std::string foutput, const bool 
 			}
 			else vrb.error("Converting non-haplotype type to haplotype type!");
 		}
-		else if (mode == CONV_BCF_SG || mode == CONV_BCF_BG)
+		else if (mode == CONV_BCF_SG || mode == CONV_BCF_BG) //Write binary genotype
 		{
-			if (type==RECORD_BINARY_GENOTYPE)
+			if (type==RECORD_BINARY_GENOTYPE) //not change coding: binary - means 0 REF and 1 ALT
 				XW.writeRecord(RECORD_BINARY_GENOTYPE, binary_bit_buf_subs.bytes, binary_bit_buf_subs.n_bytes);
 			else if (type==RECORD_SPARSE_GENOTYPE)
 			{
-				binary_bit_buf_subs.set(false);
-				for (auto gt : sparse_int_buf_subs)
-				{
-					sparse_genotype rg;
-					rg.set(gt);
-					if (rg.mis) {
-						binary_bit_buf_subs.set(2*rg.idx+0, true);
-						//binary_bit_buf.set(2*rg.idx+1) = false;
-					} else {
-						binary_bit_buf_subs.set(2*rg.idx+0,rg.al0);
-						binary_bit_buf_subs.set(2*rg.idx+1,rg.al1);
-					}
+				binary_bit_buf_subs.set(!minor_full);//this should do the trick for minor allele
+				for (auto i = 0; i < n_elements_subs; ++i) {
+				    sparse_genotype rg(sparse_int_buf_subs[i]); //FIXME potential issue: int32_t to unsigned int
+				    if (rg.mis) {
+				        binary_bit_buf_subs.set(2 * rg.idx + 0, true);
+				        binary_bit_buf_subs.set(2 * rg.idx + 1, false);
+				    } else if (rg.het) {
+				        binary_bit_buf_subs.set(2 * rg.idx + 0, false);
+				        binary_bit_buf_subs.set(2 * rg.idx + 1, true);
+				    } else {
+				        binary_bit_buf_subs.set(2 * rg.idx + 0, minor_full); //hom minor
+				        binary_bit_buf_subs.set(2 * rg.idx + 1, minor_full); //hom minor
+				    }
 				}
 				XW.writeRecord(RECORD_BINARY_GENOTYPE, binary_bit_buf_subs.bytes, binary_bit_buf_subs.n_bytes);
 			}
 			else vrb.error("Converting non-genotype type to genotype type!");
 		}
-		else
+		else //Write binary haplotype
 		{
-			if (type==RECORD_BINARY_HAPLOTYPE)
+			if (type==RECORD_BINARY_HAPLOTYPE)//not change coding: binary - means 0 REF and 1 ALT
 				XW.writeRecord(RECORD_BINARY_HAPLOTYPE, binary_bit_buf_subs.bytes, binary_bit_buf_subs.n_bytes);
 			else if (type==RECORD_SPARSE_HAPLOTYPE)
 			{
 				//conversion: SPARSE hap -> binary
-				binary_bit_buf_subs.set(!minor_full);
+				binary_bit_buf_subs.set(!minor_full);//this should do the trick for minor allele
 				for (auto i=0; i<n_elements_subs;++i)
-					binary_bit_buf_subs.set(sparse_int_buf_subs[i],minor_full);
+					binary_bit_buf_subs.set(sparse_int_buf_subs[i],minor_full);//minor
 				XW.writeRecord(RECORD_BINARY_HAPLOTYPE, binary_bit_buf_subs.bytes, binary_bit_buf_subs.n_bytes);
 			}
 			else vrb.error("Converting non-haplotype type to haplotype type!");
