@@ -719,7 +719,7 @@ public:
 			oformat = "wbu";		//Uncompressed BCF for stdout
 		} else if (hts_fname.size() > 3 && hts_fname.substr(hts_fname.size()-3) == "bcf") {
 			oformat = "wb";			//Compressed BCF for file
-		} else if (hts_fname.size() > 5 && hts_fname.substr(hts_fname.size()-5) == "vcf.gz") {
+		} else if (hts_fname.size() > 6 && hts_fname.substr(hts_fname.size()-6) == "vcf.gz") {
 			oformat = "wz";			//Compressed VCF for file
 		} else if (hts_fname.size() > 3 && hts_fname.substr(hts_fname.size()-3) == "vcf") {
 			oformat = "wv";			//Uncompressed VCF for file
