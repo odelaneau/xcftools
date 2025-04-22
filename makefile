@@ -1,5 +1,5 @@
 #COMPILER MODE C++17
-CXX=g++ -std=c++17
+CXX=g++ -std=c++20
 
 
 #create folders

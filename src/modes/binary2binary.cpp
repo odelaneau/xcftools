@@ -1,12 +1,8 @@
 /*******************************************************************************
-<<<<<<< HEAD
  * Copyright (C) 2023-2025 Simone Rubinacci
  * Copyright (C) 2023-2025 Olivier Delaneau
  *
  * MIT Licence
-=======
- * Copyright (C) 2022-2023 Olivier Delaneau
->>>>>>> branch 'main' of https://github.com/odelaneau/xcftools.git
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -30,7 +26,7 @@
 #include "../versions/versions.h"
 #include <modes/binary2binary.h>
 #include <utils/xcf.h>
-#include <utils/sparse_genotype.h>
+#include <objects/sparse_genotype.h>
 
 binary2binary::binary2binary(std::string _region, float _minmaf, int _nthreads, int _mode, bool _drop_info)
 {
