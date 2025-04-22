@@ -1,5 +1,8 @@
 /*******************************************************************************
- * Copyright (C) 2022-2023 Olivier Delaneau
+ * Copyright (C) 2023-2025 Simone Rubinacci
+ * Copyright (C) 2023-2025 Olivier Delaneau
+ *
+ * MIT Licence
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -30,37 +33,52 @@ void fill_tags::read_files_and_initialise()
 
 void fill_tags::hdr_append(bcf_hdr_t* out_hdr)
 {
-    int i;
-    for (i=0; i<pop_names.size(); i++)
+    for (int i = 0; i < pop_names.size(); i++)
     {
         std::string s0 = pop_names[i].empty() ? "" : "_" + pop_names[i];
         std::string s1 = pop_names[i].empty() ? "" : " in ";
         std::string s2 = pop_names[i];
 
-    	if ( A.mTags & SET_AN ) bcf_hdr_printf(out_hdr, std::string("##INFO=<ID=AN" + s0 + ",Number=1,Type=Integer,Description=\"Total number of alleles in called genotypes" + s1 + s2 + "\">").c_str());
-        if ( A.mTags & SET_AC ) bcf_hdr_printf(out_hdr, std::string("##INFO=<ID=AC" + s0 + ",Number=A,Type=Integer,Description=\"Allele count in genotypes" + s1 + s2 + "\">").c_str());
-        if ( A.mTags & SET_NS ) bcf_hdr_printf(out_hdr, std::string("##INFO=<ID=NS" + s0 + ",Number=1,Type=Integer,Description=\"Number of samples with data" + s1 + s2 + "\">").c_str());
-        if ( A.mTags & SET_AC_Hom ) bcf_hdr_printf(out_hdr, std::string("##INFO=<ID=AC_Hom" + s0 + ",Number=A,Type=Integer,Description=\"Allele counts in homozygous genotypes" + s1 + s2 + "\">").c_str());
-        if ( A.mTags & SET_AC_Het ) bcf_hdr_printf(out_hdr, std::string("##INFO=<ID=AC_Het" + s0 + ",Number=A,Type=Integer,Description=\"Allele counts in heterozygous genotypes" + s1 + s2 + "\">").c_str());
-        //if ( A.mTags & SET_AC_Hemi ) bcf_hdr_printf(out_hdr, std::string("##INFO=<ID=AC_Hemi" + s0 + ",Number=A,Type=Integer,Description=\"Allele counts in hemizygous genotypes" + s1 + s2 + "\">").c_str());
-        if ( A.mTags & SET_AF ) bcf_hdr_printf(out_hdr, std::string("##INFO=<ID=AF" + s0 + ",Number=A,Type=Float,Description=\"Allele frequency" + s1 + s2 + "\">").c_str());
-        if ( A.mTags & SET_MAF ) bcf_hdr_printf(out_hdr, std::string("##INFO=<ID=MAF" + s0 + ",Number=1,Type=Float,Description=\"Frequency of the second most common allele" + s1 + s2 + "\">").c_str());
-        if ( A.mTags & SET_IC ) bcf_hdr_printf(out_hdr, std::string("##INFO=<ID=IC" + s0 + ",Number=A,Type=Float,Description=\"Inbreeding coefficient (based on Hardy-Weinberg Equilibrium heterozygosity) " + s1 + s2 + "\">").c_str());
-        if ( A.mTags & SET_HWE ) bcf_hdr_printf(out_hdr, std::string("##INFO=<ID=HWE" + s0 + ",Number=A,Type=Float,Description=\"Hardy-Weinberg Equilibrium test" + s1 + s2 + " (PMID:15789306); 1=good, 0=bad\">").c_str());
-        if ( A.mTags & SET_HWE ) bcf_hdr_printf(out_hdr, std::string("##INFO=<ID=HWE_CHISQ" + s0 + ",Number=A,Type=Float,Description=\"Chi-squared Hardy-Weinberg Equilibrium P-value" + s1 + s2 + "\">").c_str());
-        if ( A.mTags & SET_ExcHet ) bcf_hdr_printf(out_hdr, std::string("##INFO=<ID=ExcHet" + s0 + ",Number=A,Type=Float,Description=\"Excess of heterozygosity P-value" + s1 + s2 + "; 1=good, 0=bad\">").c_str());
+        if (A.mTags & SET_AN)
+            bcf_hdr_printf(out_hdr, "##INFO=<ID=AN%s,Number=1,Type=Integer,Description=\"Total number of alleles in called genotypes%s%s\">", s0.c_str(), s1.c_str(), s2.c_str());
+        if (A.mTags & SET_AC)
+            bcf_hdr_printf(out_hdr, "##INFO=<ID=AC%s,Number=A,Type=Integer,Description=\"Allele count in genotypes%s%s\">", s0.c_str(), s1.c_str(), s2.c_str());
+        if (A.mTags & SET_NS)
+            bcf_hdr_printf(out_hdr, "##INFO=<ID=NS%s,Number=1,Type=Integer,Description=\"Number of samples with data%s%s\">", s0.c_str(), s1.c_str(), s2.c_str());
+        if (A.mTags & SET_AC_Hom)
+            bcf_hdr_printf(out_hdr, "##INFO=<ID=AC_Hom%s,Number=A,Type=Integer,Description=\"Allele counts in homozygous genotypes%s%s\">", s0.c_str(), s1.c_str(), s2.c_str());
+        if (A.mTags & SET_AC_Het)
+            bcf_hdr_printf(out_hdr, "##INFO=<ID=AC_Het%s,Number=A,Type=Integer,Description=\"Allele counts in heterozygous genotypes%s%s\">", s0.c_str(), s1.c_str(), s2.c_str());
+        if (A.mTags & SET_AF)
+            bcf_hdr_printf(out_hdr, "##INFO=<ID=AF%s,Number=A,Type=Float,Description=\"Allele frequency%s%s\">", s0.c_str(), s1.c_str(), s2.c_str());
+        if (A.mTags & SET_MAF)
+            bcf_hdr_printf(out_hdr, "##INFO=<ID=MAF%s,Number=1,Type=Float,Description=\"Frequency of the second most common allele%s%s\">", s0.c_str(), s1.c_str(), s2.c_str());
+        if (A.mTags & SET_IC)
+            bcf_hdr_printf(out_hdr, "##INFO=<ID=IC%s,Number=A,Type=Float,Description=\"Inbreeding coefficient (based on Hardy-Weinberg Equilibrium heterozygosity)%s%s\">", s0.c_str(), s1.c_str(), s2.c_str());
+        if (A.mTags & SET_HWE)
+            bcf_hdr_printf(out_hdr, "##INFO=<ID=HWE%s,Number=A,Type=Float,Description=\"Hardy-Weinberg Equilibrium test%s%s (PMID:15789306); 1=good, 0=bad\">", s0.c_str(), s1.c_str(), s2.c_str());
+        if (A.mTags & SET_HWE)
+            bcf_hdr_printf(out_hdr, "##INFO=<ID=HWE_CHISQ%s,Number=A,Type=Float,Description=\"Chi-squared Hardy-Weinberg Equilibrium P-value%s%s\">", s0.c_str(), s1.c_str(), s2.c_str());
+        if (A.mTags & SET_ExcHet)
+            bcf_hdr_printf(out_hdr, "##INFO=<ID=ExcHet%s,Number=A,Type=Float,Description=\"Excess of heterozygosity P-value%s%s; 1=good, 0=bad\">", s0.c_str(), s1.c_str(), s2.c_str());
     }
-    if ( A.mTags & SET_MENDEL )
+
+    if (A.mTags & SET_MENDEL)
     {
-    	bcf_hdr_printf(out_hdr, "##INFO=<ID=MERR_CNT,Number=1,Type=Integer,Description=\"Number of Mendel errors in duos/trios\">");
-    	bcf_hdr_printf(out_hdr, "##INFO=<ID=MTOT_ALL,Number=1,Type=Integer,Description=\"Number of non-missing trios/duos\">");
-    	bcf_hdr_printf(out_hdr, "##INFO=<ID=MTOT_MINOR,Number=1,Type=Integer,Description=\"Number of non-missing and non-major only triplets/duplets in trios/duos\">");
-    	bcf_hdr_printf(out_hdr, "##INFO=<ID=MERR_RATE_ALL,Number=1,Type=Float,Description=\"Mendel error rate (MERR_CNT/MTOT_ALL)\">");
-    	bcf_hdr_printf(out_hdr, "##INFO=<ID=MERR_RATE_MINOR,Number=1,Type=Float,Description=\"Mendel error rate in non-major only triplets/duplets (MERR_CNT/MTOT_ALT)\">");
+        bcf_hdr_printf(out_hdr, "##INFO=<ID=MERR_CNT,Number=1,Type=Integer,Description=\"Number of Mendel errors in duos/trios\">");
+        bcf_hdr_printf(out_hdr, "##INFO=<ID=MTOT_ALL,Number=1,Type=Integer,Description=\"Number of non-missing trios/duos\">");
+        bcf_hdr_printf(out_hdr, "##INFO=<ID=MTOT_MINOR,Number=1,Type=Integer,Description=\"Number of non-missing and non-major only triplets/duplets in trios/duos\">");
+        bcf_hdr_printf(out_hdr, "##INFO=<ID=MERR_RATE_ALL,Number=1,Type=Float,Description=\"Mendel error rate (MERR_CNT/MTOT_ALL)\">");
+        bcf_hdr_printf(out_hdr, "##INFO=<ID=MERR_RATE_MINOR,Number=1,Type=Float,Description=\"Mendel error rate in non-major only triplets/duplets (MERR_CNT/MTOT_ALT)\">");
     }
-    if ( A.mTags & SET_END ) bcf_hdr_printf(out_hdr, "##INFO=<ID=END,Number=1,Type=Integer,Description=\"End position of the variant\">");
-    if ( A.mTags & SET_TYPE ) bcf_hdr_printf(out_hdr, "##INFO=<ID=TYPE,Number=.,Type=String,Description=\"Variant type\">");
+
+    if (A.mTags & SET_END)
+        bcf_hdr_printf(out_hdr, "##INFO=<ID=END,Number=1,Type=Integer,Description=\"End position of the variant\">");
+
+    if (A.mTags & SET_TYPE)
+        bcf_hdr_printf(out_hdr, "##INFO=<ID=TYPE,Number=.,Type=String,Description=\"Variant type\">");
 }
+
 
 void fill_tags::prepare_output(const xcf_reader& XR, xcf_writer& XW,const uint32_t idx_file)
 {
