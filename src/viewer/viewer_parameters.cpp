@@ -43,8 +43,7 @@ void viewer::declare_options() {
 			("maf,m", bpo::value< float >()->default_value(0.001), "Threshold to distinguish rare variants from common ones")
 			("samples,s", bpo::value< string >(), "XCF2XCF only: comma separated list of samples to include (or exclude with \"^\" prefix)")
 			("samples-file,S", bpo::value< string >(), "XCF2XCF only: File of samples to include (or exclude with \"^\" prefix)")
-			("force-samples", "Only warn about unknown subset samples")
-			;
+			("force-samples", "Only warn about unknown subset samples");
 
 	bpo::options_description opt_output ("Output files");
 	opt_output.add_options()
@@ -117,6 +116,11 @@ void viewer::check_options() {
 			read_samples(samples, is_sample_file);
 		}
 	}
+	else
+	{
+		if (options.count("samples") || options.count("samples-file"))
+			vrb.warning("Ignoring --samples and --samples-file options: only supported in XCF2XCF mode");
+	}
 	region = (options.count("region")) ? options["region"].as < string > () : "";
 	format = options["format"].as < string > ();
 	finput = options["input"].as < string > ();
@@ -154,13 +158,38 @@ void viewer::verbose_files() {
 	if (options.count("log")) vrb.bullet("Output LOG    : [" + options["log"].as < string > () + "]");
 }
 
-void viewer::verbose_options() {
+void viewer::verbose_options()
+{
+	string formatS = options["format"].as < string > ();
+
 	vrb.title("Parameters:");
-	std::array<std::string,2> yes_no = {"YES","NO"};
-	vrb.bullet("Keep INFO     : [" + yes_no[!drop_info] + "]");
+	std::array<std::string,2> no_yes = {"NO","YES"};
+	vrb.bullet("Keep INFO     : [" + no_yes[drop_info] + "]");
 	vrb.bullet("Seed          : [" + stb.str(options["seed"].as < int > ()) + "]");
 	vrb.bullet("Threads       : [" + stb.str(nthreads) + " threads]");
 
 	string format = options["format"].as < string > ();
 	if (format[0] == 's') vrb.bullet("MAF     : " + stb.str(maf));
+
+    // Verbose output for samples and samples-file options
+    if (!input_fmt_bcf && !isBCF(formatS)) {
+        if (options.count("samples") || options.count("samples-file")) {
+            if (options.count("samples") && options.count("samples-file")) {
+                vrb.error("Options --samples and --samples-file cannot be both specified");
+            }
+
+            vrb.bullet("Subsampling   : [YES]");
+            const bool is_sample_file = options.count("samples-file");
+            std::string samples = is_sample_file ? options["samples-file"].as<string>() : options["samples"].as<string>();
+            if (samples.empty()) {
+                vrb.error("Sample option is empty");
+            }
+            vrb.bullet("Sample list   : [" + samples + "]");
+            vrb.bullet("Force samples : [" + no_yes[subsample_isforce] + "]");
+            vrb.bullet("Exclude       : [" + no_yes[subsample_exclude] + "]");
+        } else {
+            vrb.bullet("Subsampling   : [NO]");
+        }
+    }
+    else  vrb.bullet("Subsampling   : [NO]");
 }

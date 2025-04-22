@@ -28,15 +28,15 @@
 
 #include <modes/binary2bcf.h>
 #include <utils/xcf.h>
-
-#include <containers/bitvector.h>
-#include <objects/sparse_genotype.h>
+#include <utils/bitvector.h>
+#include <utils/sparse_genotype.h>
 
 using namespace std;
 
-binary2bcf::binary2bcf(string _region, int _nthreads) {
+binary2bcf::binary2bcf(string _region, int _nthreads, bool _drop_info) {
 	nthreads = _nthreads;
 	region = _region;
+	drop_info = _drop_info;
 }
 
 binary2bcf::~binary2bcf() {
@@ -66,7 +66,9 @@ void binary2bcf::convert(string finput, string foutput) {
 	xcf_writer XW(foutput, true, nthreads);
 
 	//Write header
-	XW.writeHeader(XR.sync_reader->readers[0].header, samples, string("XCFtools ") + string(XCFTLS_VERSION));
+	//XW.writeHeader(XR.sync_reader->readers[0].header, samples, string("XCFtools ") + string(XCFTLS_VERSION));
+	bcf1_t* rec = XW.hts_record;
+	XW.writeHeader(XR, std::string("XCFtools ") + std::string(XCFTLS_VERSION), !drop_info);
 
 	//Buffer for input/output
 	int32_t * input_buffer = (int32_t*)malloc(2 * nsamples * sizeof(int32_t));
@@ -75,12 +77,18 @@ void binary2bcf::convert(string finput, string foutput) {
 	//Buffer for binary data
 	bitvector binary_buffer = bitvector(2 * nsamples);
 
+	//Buffer for phase probs
+	float * probabilities = (float*)malloc(nsamples * sizeof(float));
+
 	//Proceed with conversion
 	uint32_t n_lines = 0;
-	while (XR.nextRecord()) {
-
+	while (XR.nextRecord())
+	{
 		//Copy over variant information
-		XW.writeInfo(XR.chr, XR.pos, XR.ref, XR.alt, XR.rsid, XR.getAC(), XR.getAN());
+		if (drop_info)
+			XW.writeInfo(XR.chr, XR.pos, XR.ref, XR.alt, XR.rsid, XR.getAC(), XR.getAN());
+		else
+			XW.hts_record = XR.sync_lines[0];
 
 		//Get type of record
 		type = XR.typeRecord(idx_file);
@@ -128,14 +136,44 @@ void binary2bcf::convert(string finput, string foutput) {
 			for(uint32_t r = 0 ; r < n_elements ; r++) {
 				sparse_genotype rg;
 				rg.set(input_buffer[r]);
+                assert(rg.idx < nsamples);
 				if (rg.mis) {
 					output_buffer[2*rg.idx+0] = bcf_gt_missing;
 					output_buffer[2*rg.idx+1] = bcf_gt_missing;
+				} else if (rg.pha) {
+					output_buffer[2*rg.idx+0] = bcf_gt_phased(rg.al0);
+					output_buffer[2*rg.idx+1] = bcf_gt_phased(rg.al1);
 				} else {
 					output_buffer[2*rg.idx+0] = bcf_gt_unphased(rg.al0);
 					output_buffer[2*rg.idx+1] = bcf_gt_unphased(rg.al1);
 				}
 			}
+		}
+
+		//Convert from sparse genotypes+PP
+		else if (type == RECORD_SPARSE_PHASEPROBS) {
+			int32_t n_elements = XR.readRecord(idx_file, reinterpret_cast< char** > (&input_buffer)) / (2*sizeof(int32_t));
+			//Set all genotypes as major
+			bool major = (XR.getAF()>0.5f);
+			std::fill(output_buffer, output_buffer+2*nsamples, bcf_gt_unphased(major));
+			//Loop over sparse genotypes
+			for(uint32_t r = 0 ; r < n_elements ; r++) {
+				sparse_genotype rg;
+				rg.set(input_buffer[2*r+0]);
+				probabilities[r] = bit_cast<float>(input_buffer[2*r+1]);
+				assert(rg.idx < nsamples);
+				if (rg.mis) {
+					output_buffer[2*rg.idx+0] = bcf_gt_missing;
+					output_buffer[2*rg.idx+1] = bcf_gt_missing;
+				} else if (rg.pha) {
+					output_buffer[2*rg.idx+0] = bcf_gt_phased(rg.al0);
+					output_buffer[2*rg.idx+1] = bcf_gt_phased(rg.al1);
+				} else {
+					output_buffer[2*rg.idx+0] = bcf_gt_unphased(rg.al0);
+					output_buffer[2*rg.idx+1] = bcf_gt_unphased(rg.al1);
+				}
+			}
+
 		}
 
 		//Convert from sparse haplotypes
@@ -145,7 +183,11 @@ void binary2bcf::convert(string finput, string foutput) {
 			bool major = (XR.getAF()>0.5f);
 			std::fill(output_buffer, output_buffer+2*nsamples, bcf_gt_phased(major));
 			//Loop over sparse genotypes
-			for(uint32_t r = 0 ; r < n_elements ; r++) output_buffer[input_buffer[r]] = bcf_gt_phased(!major);
+			for(uint32_t r = 0 ; r < n_elements ; r++)
+			{
+				assert(input_buffer[r] < 2*nsamples);
+				output_buffer[input_buffer[r]] = bcf_gt_phased(!major);
+			}
 		}
 
 		//Unknown record type
@@ -165,11 +207,13 @@ void binary2bcf::convert(string finput, string foutput) {
 	vrb.bullet("Number of XCF records processed: N = " + stb.str(n_lines));
 
 	//Free
+	free(probabilities);
 	free(input_buffer);
 	free(output_buffer);
 
-	//Close files
-	XR.close();
-	XW.close();
-}
+	if (!drop_info) XW.hts_record = rec;
 
+	//Close files
+	XW.close();
+	XR.close();
+}

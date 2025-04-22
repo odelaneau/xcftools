@@ -23,7 +23,7 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#ifndef _OLIVIER_TOOLS_H
+#ifndef _OLIVIER_TOOLS_H //redefined to this name due to XCF stuff
 #define _OLIVIER_TOOLS_H
 
 //INCLUDE STANDARD TEMPLATE LIBRARY USEFULL STUFFS (STL)
@@ -31,6 +31,7 @@
 #include <list>
 #include <queue>
 #include <stack>
+#include <bit>
 #include <bitset>
 #include <set>
 #include <tuple>
@@ -91,6 +92,7 @@ using aligned_vector32 = std::vector<T, boost::alignment::aligned_allocator < T,
 #define DIV2(v)		((v)>>1)
 #define MOD2(v)		((v)&1)
 #define DIVU(v, d) 	(v+(d-1))/d
+#define ROUND8(x)	((x+7)>>3)<<3
 
 //NAMESPACE
 namespace bio = boost::iostreams;
