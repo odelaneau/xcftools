@@ -1,5 +1,8 @@
 /*******************************************************************************
- * Copyright (C) 2022-2023 Olivier Delaneau
+ * Copyright (C) 2023-2025 Simone Rubinacci
+ * Copyright (C) 2023-2025 Olivier Delaneau
+ *
+ * MIT Licence
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -19,6 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  ******************************************************************************/
+
 
 #ifndef _XCF_H
 #define _XCF_H
@@ -719,7 +723,7 @@ public:
 			oformat = "wbu";		//Uncompressed BCF for stdout
 		} else if (hts_fname.size() > 3 && hts_fname.substr(hts_fname.size()-3) == "bcf") {
 			oformat = "wb";			//Compressed BCF for file
-		} else if (hts_fname.size() > 5 && hts_fname.substr(hts_fname.size()-5) == "vcf.gz") {
+		} else if (hts_fname.size() > 6 && hts_fname.substr(hts_fname.size()-6) == "vcf.gz") {
 			oformat = "wz";			//Compressed VCF for file
 		} else if (hts_fname.size() > 3 && hts_fname.substr(hts_fname.size()-3) == "vcf") {
 			oformat = "wv";			//Uncompressed VCF for file

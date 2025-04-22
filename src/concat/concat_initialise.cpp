@@ -1,6 +1,6 @@
 /*******************************************************************************
- * Copyright (C) 2023 Simone Rubinacci
- * Copyright (C) 2023 Olivier Delaneau
+ * Copyright (C) 2023-2025 Simone Rubinacci
+ * Copyright (C) 2023-2025 Olivier Delaneau
  *
  * MIT Licence
  *

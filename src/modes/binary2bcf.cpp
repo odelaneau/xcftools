@@ -1,5 +1,8 @@
 /*******************************************************************************
- * Copyright (C) 2022-2023 Olivier Delaneau
+ * Copyright (C) 2023-2025 Simone Rubinacci
+ * Copyright (C) 2023-2025 Olivier Delaneau
+ *
+ * MIT Licence
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -19,6 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  ******************************************************************************/
+
 
 #include "../versions/versions.h"
 
@@ -169,9 +173,7 @@ void binary2bcf::convert(string finput, string foutput) {
 					output_buffer[2*rg.idx+1] = bcf_gt_unphased(rg.al1);
 				}
 			}
-
 		}
-
 		//Convert from sparse haplotypes
 		else if (type == RECORD_SPARSE_HAPLOTYPE) {
 			int32_t n_elements = XR.readRecord(idx_file, reinterpret_cast< char** > (&input_buffer)) / sizeof(int32_t);

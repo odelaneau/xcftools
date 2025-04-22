@@ -1,6 +1,6 @@
 /*******************************************************************************
- * Copyright (C) 2022-2023 Simone Rubinacci
- * Copyright (C) 2022-2023 Olivier Delaneau
+ * Copyright (C) 2023-2025 Simone Rubinacci
+ * Copyright (C) 2023-2025 Olivier Delaneau
  *
  * MIT Licence
  *
@@ -22,6 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  ******************************************************************************/
+
 
 #ifndef _STRING_UTILS_H
 #define _STRING_UTILS_H

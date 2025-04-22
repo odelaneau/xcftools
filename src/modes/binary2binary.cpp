@@ -1,5 +1,12 @@
 /*******************************************************************************
+<<<<<<< HEAD
+ * Copyright (C) 2023-2025 Simone Rubinacci
+ * Copyright (C) 2023-2025 Olivier Delaneau
+ *
+ * MIT Licence
+=======
  * Copyright (C) 2022-2023 Olivier Delaneau
+>>>>>>> branch 'main' of https://github.com/odelaneau/xcftools.git
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal

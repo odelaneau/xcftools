@@ -1,7 +1,6 @@
 /*******************************************************************************
- * Copyright (C) 2023 Simone Rubinacci
- * Copyright (C) 2023 Olivier Delaneau
- * Copyright (C) 2013-2023 Genome Research Ltd.
+ * Copyright (C) 2023-2025 Simone Rubinacci
+ * Copyright (C) 2023-2025 Olivier Delaneau
  *
  * MIT Licence
  *

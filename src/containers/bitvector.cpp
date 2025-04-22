@@ -23,41 +23,32 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#ifndef BINARY2BINARY_H_
-#define BINARY2BINARY_H_
 
-#include <utils/otools.h>
-#include <utils/xcf.h>
-#include <utils/bitvector.h>
+#include <containers/bitvector.h>
 
+using namespace std;
 
-#define CONV_BCF_BG	0
-#define CONV_BCF_BH	1
-#define CONV_BCF_SG	2
-#define CONV_BCF_SH	3
+bitvector::bitvector() {
+	n_bytes = n_elements = 0;
+	bytes = NULL;
+}
 
-class binary2binary {
-public:
-	//PARAM
-	bitvector binary_bit_buf;
-	std::vector<int32_t> sparse_int_buf;
+bitvector::bitvector(uint32_t size) {
+	n_bytes = DIVU(size, 8);
+	n_elements = size;
+	bytes = (char*)malloc(n_bytes * sizeof(char));
+	memset(bytes, 0, n_bytes);
+}
 
-	std::string region;
-	int nthreads;
-	int mode;
-	float minmaf;
-	bool drop_info;
+bitvector::~bitvector() {
+	n_bytes = n_elements = 0;
+	if (bytes != NULL) free(bytes);
+	bytes = NULL;
+}
 
-	//CONSTRUCTORS/DESCTRUCTORS
-	binary2binary(std::string, float, int, int, bool);
-	virtual ~binary2binary();
-
-	//PROCESS
-	void convert(std::string, std::string);
-	void convert(std::string, std::string, const bool exclude, const bool isforce, std::vector<std::string>& smpls);
-	int32_t parse_genotypes(xcf_reader& XR, const uint32_t idx_file);
-
-
-};
-
-#endif /* BINARY2BINARY_H_ */
+void bitvector::allocate(uint32_t size) {
+	n_bytes = DIVU(size, 8);
+	n_elements = size;
+	bytes = (char*)malloc(n_bytes * sizeof(char));
+	memset(bytes, 0, n_bytes);
+}

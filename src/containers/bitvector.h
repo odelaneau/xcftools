@@ -23,41 +23,58 @@
  * SOFTWARE.
  ******************************************************************************/
 
-#ifndef BINARY2BINARY_H_
-#define BINARY2BINARY_H_
+#ifndef _BITVECTOR_H
+#define _BITVECTOR_H
 
 #include <utils/otools.h>
-#include <utils/xcf.h>
-#include <utils/bitvector.h>
 
-
-#define CONV_BCF_BG	0
-#define CONV_BCF_BH	1
-#define CONV_BCF_SG	2
-#define CONV_BCF_SH	3
-
-class binary2binary {
+class bitvector {
 public:
-	//PARAM
-	bitvector binary_bit_buf;
-	std::vector<int32_t> sparse_int_buf;
+	uint64_t n_bytes, n_elements;
+	char * bytes;
 
-	std::string region;
-	int nthreads;
-	int mode;
-	float minmaf;
-	bool drop_info;
+	bitvector();
+	bitvector(uint32_t size);
+	~bitvector();
 
-	//CONSTRUCTORS/DESCTRUCTORS
-	binary2binary(std::string, float, int, int, bool);
-	virtual ~binary2binary();
-
-	//PROCESS
-	void convert(std::string, std::string);
-	void convert(std::string, std::string, const bool exclude, const bool isforce, std::vector<std::string>& smpls);
-	int32_t parse_genotypes(xcf_reader& XR, const uint32_t idx_file);
-
-
+	void allocate(uint32_t size);
+	void set(uint32_t idx, bool bit);
+	void setneg(uint32_t idx);
+	void set(bool bit);
+	bool get(uint32_t idx);
 };
 
-#endif /* BINARY2BINARY_H_ */
+inline
+void bitvector::set(uint32_t idx, bool value) {
+	uint32_t idx_byt = idx / 8;
+	uint32_t idx_bit = idx % 8;
+	char mask = ~(1 << (7 - idx_bit));
+	this->bytes[idx_byt] &= mask;
+	this->bytes[idx_byt] |= (value << (7 - idx_bit));
+}
+
+inline
+void bitvector::setneg(uint32_t idx) {
+	uint32_t idx_byt = idx / 8;
+	uint32_t idx_bit = idx % 8;
+	//char mask = ~(1 << (7 - idx_bit));
+	//this->bytes[idx_byt] &= mask;
+	//this->bytes[idx_byt] |= (get(idx) << (7 - idx_bit));
+    char mask = 1 << (7 - idx_bit);
+    this->bytes[idx_byt] ^= mask;
+}
+
+inline
+void bitvector::set(const bool value) {
+    const char byte_value = value ? 0xFF : 0x00; // Set byte_value to 0xFF if value is true, otherwise 0x00
+    memset(bytes, byte_value, n_bytes);
+}
+
+inline
+bool bitvector::get(uint32_t idx) {
+	uint32_t idx_byt = idx / 8;
+	uint32_t idx_bit = idx % 8;
+	return (this->bytes[idx_byt] >> (7 - (idx_bit%8))) & 1;
+}
+
+#endif
