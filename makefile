@@ -1,9 +1,5 @@
 #COMPILER MODE C++17
-<<<<<<< HEAD
 CXX=g++ -std=c++17
-=======
-CXX=g++ -std=c++20
->>>>>>> refs/remotes/origin/main
 
 
 #create folders
@@ -143,25 +139,12 @@ static_exe: CXXFLAG=-O2 -mavx2 -mfma -D__COMMIT_ID__=\"$(COMMIT_VERS)\" -D__COMM
 static_exe: LDFLAG=-O2
 static_exe: $(EXEFILE)
 
-<<<<<<< HEAD
 dnanexus: BOOST_INC=/usr/include
 dnanexus: BOOST_LIB_IO=/usr/lib/x86_64-linux-gnu/libboost_iostreams.a
 dnanexus: BOOST_LIB_PO=/usr/lib/x86_64-linux-gnu/libboost_program_options.a
 dnanexus: HTSLIB_INC=/usr/local/include/
 dnanexus: HTSLIB_LIB=/usr/local/lib/libhts.a
 dnanexus: $(BFILE)
-=======
-# static desktop Robin
-static_exe_robin_desktop: CXXFLAG=-O2 -mavx2 -mfma -D__COMMIT_ID__=\"$(COMMIT_VERS)\" -D__COMMIT_DATE__=\"$(COMMIT_DATE)\"
-static_exe_robin_desktop: LDFLAG=-O2
-static_exe_robin_desktop: HTSSRC=/home/robin/Dropbox/LIB
-static_exe_robin_desktop: HTSLIB_INC=$(HTSSRC)/htslib_minimal
-static_exe_robin_desktop: HTSLIB_LIB=$(HTSSRC)/htslib_minimal/libhts.a
-static_exe_robin_desktop: BOOST_INC=/usr/include
-static_exe_robin_desktop: BOOST_LIB_IO=$(HTSSRC)/boost/lib/libboost_iostreams.a
-static_exe_robin_desktop: BOOST_LIB_PO=$(HTSSRC)/boost/lib/libboost_program_options.a
-static_exe_robin_desktop: $(EXEFILE)
->>>>>>> refs/remotes/origin/main
 
 
 #COMPILATION RULES
