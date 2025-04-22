@@ -1,4 +1,4 @@
-#COMPILER MODE C++20
+#COMPILER MODE C++17
 CXX=g++ -std=c++20
 
 
@@ -7,39 +7,19 @@ dummy_build_folder_bin := $(shell mkdir -p bin)
 dummy_build_folder_obj := $(shell mkdir -p obj)
 
 #COMPILER & LINKER FLAGS
-CXXFLAGS+= -O3
-LDFLAGS+= -O3
-#CXXFLAGS+= -O0 -g
-#LDFLAGS+= -O0
-
-# Test if on x86 and target Haswell & newer.
-# Disable this if building on x86 CPUs without AVX2 support.
-UNAME_M := $(shell uname -m)
-ifeq ($(UNAME_M),x86_64)
-    CXXFLAGS+= -march=x86-64-v3
-endif
+CXXFLAG=-O3 -mavx2 -mfma
+LDFLAG=-O3
 
 #COMMIT TRACING
 COMMIT_VERS=$(shell git rev-parse --short HEAD)
 COMMIT_DATE=$(shell git log -1 --format=%cd --date=short)
-CXXFLAGS+= -D__COMMIT_ID__=\"$(COMMIT_VERS)\"
-CXXFLAGS+= -D__COMMIT_DATE__=\"$(COMMIT_DATE)\"
-
-# RMATH Support [YES/NO]
-ifeq ($(RMATH_SUPPORT),)
-	RMATH_SUPPORT=NO
-endif
-ifeq ($(RMATH_SUPPORT),YES)
-	RMATH_INC=/usr/share/R/include/
-	RMATH_LIB=/usr/lib/libRmath.a
-#	DYN_LIBS+= -lzstd -lhts
-	CXXFLAGS+= -D__RMATH_LIB__ -I$(RMATH_INC)
-endif
+CXXFLAG+= -D__COMMIT_ID__=\"$(COMMIT_VERS)\"
+CXXFLAG+= -D__COMMIT_DATE__=\"$(COMMIT_DATE)\"
 
 # DYNAMIC LIBRARIES # Standard libraries are still dynamic in static exe
-DYN_LIBS_FOR_STATIC=-lz -lpthread -lbz2 -llzma -lcrypto -ldeflate
+DYN_LIBS_FOR_STATIC=-lz -lpthread -lbz2 -llzma -lcurl -lcrypto -ldeflate
 # Non static exe links with all libraries
-DYN_LIBS= -lboost_iostreams -lboost_program_options -lhts -pthread -lcurl -ldeflate
+DYN_LIBS=$(DYN_LIBS_FOR_STATIC) -lboost_iostreams -lboost_program_options -lboost_serialization -lhts
 
 HFILE=$(shell find src -name *.h)
 CFILE=$(shell find src -name *.cpp)
@@ -48,7 +28,7 @@ VPATH=$(shell for file in `find src -name *.cpp`; do echo $$(dirname $$file); do
 
 NAME=$(shell basename "$(CURDIR)")
 BFILE=bin/$(NAME)
-MACFILE=bin/$(NAME)_mac
+DBGFILE=bin/$(NAME)_debug
 EXEFILE=bin/$(NAME)_static
 
 # Only search for libraries if goals != clean
@@ -73,7 +53,7 @@ ifneq ($(suffix $(BOOST_LIB_IO)),.a)
     # If not found check default path
     ifeq ($(wildcard /usr/local/lib/libboost_iostreams.a),)
         # File does not exist
-        $(warning libboost_iostreams.a not found, you can specify it with "make BOOST_LIB_IO=/path/to/lib...")
+        #$(warning libboost_iostreams.a not found, you can specify it with "make BOOST_LIB_IO=/path/to/lib...")
     else
         # File exists, set the variable
         BOOST_LIB_IO=/usr/local/lib/libboost_iostreams.a
@@ -86,10 +66,23 @@ ifneq ($(suffix $(BOOST_LIB_PO)),.a)
     # If not found check default path
     ifeq ($(wildcard /usr/local/lib/libboost_program_options.a),)
         # File does not exist
-        $(warning libboost_program_options.a not found, you can specify it with "make BOOST_LIB_PO=/path/to/lib...")
+        #$(warning libboost_program_options.a not found, you can specify it with "make BOOST_LIB_PO=/path/to/lib...")
     else
         # File exists, set the variable
         BOOST_LIB_PO=/usr/local/lib/libboost_program_options.a
+    endif
+endif
+
+# If not set by user command, search for it
+BOOST_LIB_SE?=$(shell whereis libboost_serialization | grep -o '\S*\.a\b')
+ifneq ($(suffix $(BOOST_LIB_SE)),.a)
+    # If not found check default path
+    ifeq ($(wildcard /usr/local/lib/libboost_serialization.a),)
+        # File does not exist
+        #$(warning libboost_serialization.a not found, you can specify it with "make BOOST_LIB_SE=/path/to/lib...")
+    else
+        # File exists, set the variable
+        BOOST_LIB_SE=/usr/local/lib/libboost_serialization.a
     endif
 endif
 
@@ -99,6 +92,28 @@ endif
 #CONDITIONAL PATH DEFINITON
 desktop: $(BFILE)
 
+simone_desktop: HTSSRC=/home/sirubina/git/htslib-1.21
+simone_desktop: HTSLIB_INC=$(HTSSRC)
+simone_desktop: HTSLIB_LIB=$(HTSSRC)/libhts.a
+simone_desktop: BOOST_INC=/home/sirubina/lib/boost/include
+simone_desktop: BOOST_LIB_IO=/home/sirubina/lib/boost/lib/libboost_iostreams.a
+simone_desktop: BOOST_LIB_PO=/home/sirubina/lib/boost/lib/libboost_program_options.a
+simone_desktop: $(BFILE)
+
+simone_desktop_debug: CXXFLAG=-O0 -g -mavx2 -mfma
+simone_desktop_debug: LDFLAG=-O0 -g
+simone_desktop_debug: COMMIT_VERS=$(shell git rev-parse --short HEAD)
+simone_desktop_debug: COMMIT_DATE=$(shell git log -1 --format=%cd --date=short)
+simone_desktop_debug: CXXFLAG+= -D__COMMIT_ID__=\"$(COMMIT_VERS)\"
+simone_desktop_debug: CXXFLAG+= -D__COMMIT_DATE__=\"$(COMMIT_DATE)\"
+simone_desktop_debug: HTSSRC=/home/sirubina/git/htslib-1.21
+simone_desktop_debug: HTSLIB_INC=$(HTSSRC)
+simone_desktop_debug: HTSLIB_LIB=$(HTSSRC)/libhts.a
+simone_desktop_debug: BOOST_INC=/home/sirubina/lib/boost/include
+simone_desktop_debug: BOOST_LIB_IO=/home/sirubina/lib/boost/lib/libboost_iostreams.a
+simone_desktop_debug: BOOST_LIB_PO=/home/sirubina/lib/boost/lib/libboost_program_options.a
+simone_desktop_debug: $(DBGFILE)
+
 olivier: HTSSRC=$(HOME)/Tools
 olivier: HTSLIB_INC=$(HTSSRC)/htslib-1.15
 olivier: HTSLIB_LIB=$(HTSSRC)/htslib-1.15/libhts.a
@@ -107,32 +122,49 @@ olivier: BOOST_LIB_IO=/usr/lib/x86_64-linux-gnu/libboost_iostreams.a
 olivier: BOOST_LIB_PO=/usr/lib/x86_64-linux-gnu/libboost_program_options.a
 olivier: $(BFILE)
 
-rgc: HTSSRC=/mnt/efs_v2/agds_methods/users/olivier.delaneau/LIBS
-rgc: HTSLIB_INC=$(HTSSRC)/htslib-1.18
-rgc: HTSLIB_LIB=$(HTSSRC)/htslib-1.18/libhts.a
-rgc: BOOST_INC=/usr/include
-rgc: BOOST_LIB_IO=/usr/lib/x86_64-linux-gnu/libboost_iostreams.a
-rgc: BOOST_LIB_PO=/usr/lib/x86_64-linux-gnu/libboost_program_options.a
-rgc: $(BFILE)
+debug: CXXFLAG=-g -mavx2 -mfma 
+debug: LDFLAG=-g
+debug: CXXFLAG+= -D__COMMIT_ID__=\"$(COMMIT_VERS)\"
+debug: CXXFLAG+= -D__COMMIT_DATE__=\"$(COMMIT_DATE)\"
+debug: HTSSRC=$(HOME)/Tools
+debug: HTSLIB_INC=$(HTSSRC)/htslib-1.15
+debug: HTSLIB_LIB=$(HTSSRC)/htslib-1.15/libhts.a
+debug: BOOST_INC=/usr/include
+debug: BOOST_LIB_IO=/usr/lib/x86_64-linux-gnu/libboost_iostreams.a
+debug: BOOST_LIB_PO=/usr/lib/x86_64-linux-gnu/libboost_program_options.a
+debug: $(BFILE)
 
-static_exe: HTSSRC=/home/srubinac/git
-static_exe: HTSLIB_INC=$(HTSSRC)/htslib_minimal
-static_exe: HTSLIB_LIB=$(HTSSRC)/htslib_minimal/libhts.a
-static_exe: CXXFLAG=-O3 -mavx2 -mfma -D__COMMIT_ID__=\"$(COMMIT_VERS)\" -D__COMMIT_DATE__=\"$(COMMIT_DATE)\"
-static_exe: LDFLAG=-O3
+
+static_exe: CXXFLAG=-O2 -mavx2 -mfma -D__COMMIT_ID__=\"$(COMMIT_VERS)\" -D__COMMIT_DATE__=\"$(COMMIT_DATE)\"
+static_exe: LDFLAG=-O2
 static_exe: $(EXEFILE)
+
+# static desktop Robin
+static_exe_robin_desktop: CXXFLAG=-O2 -mavx2 -mfma -D__COMMIT_ID__=\"$(COMMIT_VERS)\" -D__COMMIT_DATE__=\"$(COMMIT_DATE)\"
+static_exe_robin_desktop: LDFLAG=-O2
+static_exe_robin_desktop: HTSSRC=/home/robin/Dropbox/LIB
+static_exe_robin_desktop: HTSLIB_INC=$(HTSSRC)/htslib_minimal
+static_exe_robin_desktop: HTSLIB_LIB=$(HTSSRC)/htslib_minimal/libhts.a
+static_exe_robin_desktop: BOOST_INC=/usr/include
+static_exe_robin_desktop: BOOST_LIB_IO=$(HTSSRC)/boost/lib/libboost_iostreams.a
+static_exe_robin_desktop: BOOST_LIB_PO=$(HTSSRC)/boost/lib/libboost_program_options.a
+static_exe_robin_desktop: $(EXEFILE)
+
 
 #COMPILATION RULES
 all: desktop
 
 $(BFILE): $(OFILE)
-	$(CXX) $(LDFLAGS) $^ -o $@ $(DYN_LIBS)
+	$(CXX) $(LDFLAG) $^ -o $@ $(DYN_LIBS)
 
+$(DBGFILE): $(OFILE)
+	$(CXX) $(LDFLAG) $^ -o $@ $(DYN_LIBS)
+	
 $(EXEFILE): $(OFILE)
-	$(CXX) $(LDFLAGS) -static -static-libgcc -static-libstdc++ -pthread -o $(EXEFILE) $^ $(HTSLIB_LIB) $(BOOST_LIB_IO) $(BOOST_LIB_PO) -Wl,-Bstatic $(DYN_LIBS_FOR_STATIC)
+	$(CXX) $(LDFLAG) -static -static-libgcc -static-libstdc++ -pthread -o $(EXEFILE) $^ $(HTSLIB_LIB) $(BOOST_LIB_IO) $(BOOST_LIB_PO) -Wl,-Bstatic $(DYN_LIBS_FOR_STATIC)
 
 obj/%.o: %.cpp $(HFILE)
-	$(CXX) $(CXXFLAGS) -c $< -o $@ -Isrc -I$(HTSLIB_INC) -I$(BOOST_INC)
+	$(CXX) $(CXXFLAG) -c $< -o $@ -Isrc -I$(HTSLIB_INC) -I$(BOOST_INC)
 
-clean: 
-	rm -f obj/*.o $(BFILE) $(EXEFILE)
+clean:
+	rm -f obj/*.o $(BFILE) $(DBGFILE) $(EXEFILE)

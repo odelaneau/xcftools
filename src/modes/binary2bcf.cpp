@@ -173,9 +173,7 @@ void binary2bcf::convert(string finput, string foutput) {
 					output_buffer[2*rg.idx+1] = bcf_gt_unphased(rg.al1);
 				}
 			}
-
 		}
-
 		//Convert from sparse haplotypes
 		else if (type == RECORD_SPARSE_HAPLOTYPE) {
 			int32_t n_elements = XR.readRecord(idx_file, reinterpret_cast< char** > (&input_buffer)) / sizeof(int32_t);
