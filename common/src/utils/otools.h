@@ -99,6 +99,35 @@ namespace bio = boost::iostreams;
 namespace bpo = boost::program_options;
 namespace bid = boost::uuids;
 
+struct AlleleCount {
+    std::array<int, 2> nhet;
+    std::array<int, 2> nhom;
+    int ns = 0;
+    int mis = 0;
+
+    void reset() {
+        nhet = {0, 0};
+        nhom = {0, 0};
+        ns = 0;
+        mis = 0;
+    }
+};
+
+struct gtcount {
+    int nhet;
+    std::array<int, 2> nhom;
+    int ns = 0;
+    int mis = 0;
+
+    void reset() {
+        nhet = 0;
+        nhom = {0, 0};
+        ns = 0;
+        mis = 0;
+    }
+};
+
+
 //MAKE SOME TOOLS FULLY ACCESSIBLE THROUGHOUT THE SOFTWARE
 #ifdef _DECLARE_TOOLBOX_HERE
 	random_number_generator rng;	//Random number generator

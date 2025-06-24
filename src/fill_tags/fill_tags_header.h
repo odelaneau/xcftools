@@ -62,21 +62,6 @@ static const int mendel_lt[27] = {
     0   // kg=2, fg=2, mg=2
 };
 
-struct AlleleCount {
-    std::array<int,2> nhet;
-    std::array<int,2> nhom;
-    int ns=0;
-    int mis=0;
-
-    void reset()
-    {
-    	nhet={0,0};
-    	nhom={0,0};
-    	ns=0;
-    	mis=0;
-    }
-};
-
 struct MendelTrio
 {
 	std::array<int,3> id;

@@ -27,6 +27,7 @@
 #include <viewer/viewer_header.h>
 #include <concat/concat_header.h>
 #include <fill_tags/fill_tags_header.h>
+#include <gtcheck/gtcheck_header.h>
 
 #include "../versions/versions.h"
 
@@ -37,7 +38,7 @@ int main(int argc, char ** argv) {
 
 	string mode = (argc>1)?string(argv[1]):"";
 
-	if (argc == 1 || (mode != "view" && mode != "concat" && mode != "fill-tags")) {
+	if (argc == 1 || (mode != "view" && mode != "concat" && mode != "fill-tags" && mode != "gtcheck")) {
 
 		vrb.title("[XCFtools] Manage XCF files");
 		vrb.bullet("Authors       : Olivier DELANEAU and Simone RUBINACCI");
@@ -48,16 +49,15 @@ int main(int argc, char ** argv) {
 		//List possible modes
 		vrb.title("Supported modes:");
 		vrb.bullet("[view]\t| Converts between XCF and BCF files");
-		vrb.bullet("[concat]\t| Concat multiple XCF files together");
-		vrb.bullet("[fill-tags]\t| Set INFO tags AF, AC, AC_Hom, AC_Het, AN, ExcHet, HWE, MAF, NS. [Note: AC_Hemi, FORMAT tag VAF, custom INFO/TAG=func(FMT/TAG) not supported]");
+		vrb.bullet("[concat]\t| Concats multiple XCF files together");
+		vrb.bullet("[fill-tags]\t| Sets INFO tags AF, AC, AC_Hom, AC_Het, AN, ExcHet, HWE, MAF, NS. [Note: AC_Hemi, FORMAT tag VAF, custom INFO/TAG=func(FMT/TAG) not supported]");
+		vrb.bullet("[gtcheck]\t| Validates two XCF files");
+
 
 	} else {
 		//Get args
 		for (int a = 2 ; a < argc ; a ++) args.push_back(string(argv[a]));
-
-		//
 		string mode = string(argv[1]);
-
 		if (mode == "view") {
 			viewer().view(args);
 		}
@@ -66,6 +66,9 @@ int main(int argc, char ** argv) {
 		}
 		else if (mode == "fill-tags") {
 			fill_tags(args).run();
+		}
+		else if (mode == "gtcheck") {
+			gtcheck(args).run();
 		}
 	}
 	return 0;

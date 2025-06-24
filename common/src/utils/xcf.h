@@ -154,7 +154,8 @@ public:
 	std::vector < bool > sync_flags;			//Has record?
 
 	//Variant information
-	bool multi;
+	bool multi; //either a multi-file reader or a single file reader with index. Unusused in practice, used just at construction time.
+
 	std::string chr;
 	uint32_t pos;
 	std::string ref;
@@ -186,13 +187,14 @@ public:
 
 
 	//CONSTRUCTOR
-	xcf_reader(std::string region, uint32_t nthreads) : multi(false),pos(0) {
+	xcf_reader(std::string region, uint32_t nthreads, bool _multi=false) : pos(0) {
+		multi = _multi;
 		if (region.empty())
 		{
 			sync_number = 0;
 			sync_reader = bcf_sr_init();
 			sync_reader->collapse = COLLAPSE_NONE;
-			//sync_reader->require_index = 1;
+			if (multi) sync_reader->require_index = 1;
 			if (nthreads > 1) bcf_sr_set_threads(sync_reader, nthreads);
 			vAC = vAN = vSK = NULL;
 			nAC = nAN = nSK = 0;
@@ -213,11 +215,12 @@ public:
 	}
 
 	//CONSTRUCTOR
-	xcf_reader(uint32_t nthreads) : multi(false),pos(0) {
+	xcf_reader(uint32_t nthreads, bool _multi=false) : pos(0) {
+		multi = _multi;
 		sync_number = 0;
 		sync_reader = bcf_sr_init();
 		sync_reader->collapse = COLLAPSE_NONE;
-		//sync_reader->require_index = 1;
+		if (multi) sync_reader->require_index = 1;
 		if (nthreads > 1) bcf_sr_set_threads(sync_reader, nthreads);
 		vAC = vAN = vSK = NULL;
 		nAC = nAN = nSK = 0;
@@ -901,7 +904,7 @@ public:
 
 	void writeRecord(bcf1_t* rec) {
 			if (bcf_write1(hts_fd, hts_hdr, rec) < 0) helper_tools::error("Failing to write VCF/record for rare variants");
-			bcf_clear1(hts_record);
+			bcf_clear1(rec);
 		}
 
 	void close()

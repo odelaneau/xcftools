@@ -502,7 +502,7 @@ void concat::concat_ligate()
 	vrb.print("Cnk " + stb.str(ifname-1) + " [" + prev_chr + ":" + stb.str(first_pos) + "-" + stb.str(prev_pos[0] + 1) + "] [L=" + stb.str(n_variants-n_variants_at_start_cnk) + " | L_comm=" + stb.str(n_lines_comm) + " / L_rare=" + stb.str(n_lines_rare) + "]");
 	XR.close();
 	bcf_hdr_destroy(out_hdr);
-	if (n_variants == 0) vrb.error("No variants to be phased in files");
+	if (n_variants == 0) vrb.error("No variants to be concatenated in files");
 	XW.close();
 
 	vrb.title("Writing completed [L=" + stb.str(n_variants) + "] | L_comm=" + stb.str(n_lines_comm_tot) + " / L_rare=" + stb.str(n_lines_rare_tot) + "] (" + stb.str(tac.rel_time()*1.0/1000, 2) + "s)");
