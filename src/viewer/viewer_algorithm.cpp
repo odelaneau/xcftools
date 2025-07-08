@@ -45,6 +45,7 @@ void viewer::view()
     else if (format == "bh") conversion_type = CONV_BCF_BH;
     else if (format == "sg") conversion_type = CONV_BCF_SG;
     else if (format == "sh") conversion_type = CONV_BCF_SH;
+    else if (format == "pp") conversion_type = CONV_BCF_PP;
     else vrb.error("Output format [" + format + "] unrecognized");
 
     if (input_fmt_bcf)

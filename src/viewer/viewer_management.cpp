@@ -49,5 +49,5 @@ bool viewer::isBCF(std::string format) {
 }
 
 bool viewer::isXCF(std::string format) {
-	return (format == "bh" || format == "bg" ||format == "sh" ||format == "sg");
+	return (format == "bh" || format == "bg" ||format == "sh" ||format == "sg" || format == "pp");
 }

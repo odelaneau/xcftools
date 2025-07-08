@@ -31,6 +31,7 @@
 #define CONV_BCF_BH	1
 #define CONV_BCF_SG	2
 #define CONV_BCF_SH	3
+#define CONV_BCF_PP 4
 
 #include <utils/otools.h>
 

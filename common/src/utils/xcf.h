@@ -594,7 +594,7 @@ public:
 	//READ DATA OF THE AVAILABLE RECORD
 	// =0: No sample data available
 	// >0: Amount of data read in bytes
-	int32_t readRecord(uint32_t file, char ** buffer) {
+	int32_t readRecord(uint32_t file, char ** buffer, char ** probabilities = NULL, int32_t * nprobabilities = NULL) {
 
 		//No data in this file for the current record
 		if (!sync_flags[file]) return 0;
@@ -607,6 +607,12 @@ public:
 			//Read genotypes [assuming buffer to be allocated!]
 			int32_t ndp = 0;//ind_number[file]*2;
 			int32_t rdp = bcf_get_genotypes(sync_reader->readers[file].header, sync_lines[file], buffer, &ndp);
+
+			if (probabilities != NULL) {
+				bcf_get_format_float(sync_reader->readers[file].header, sync_lines[file], "PP", probabilities, nprobabilities);
+				//std::cout << " nprobabilities: " << *nprobabilities << std::endl;
+			}
+
 			int32_t max_ploidy = rdp/ind_number[file];
 			if (ploidy[file] < 0) ploidy[file] = rdp/ind_number[file];
 			assert ( rdp>=0 && max_ploidy>0); // GT present
@@ -642,7 +648,7 @@ public:
 		if (sync_types[file] == FILE_BCF) {
 			//Read genotypes [assuming buffer to be allocated!]
 			int32_t ndp = 0;//ind_number[file]*2;
-			int32_t rdp = bcf_get_genotypes(sync_reader->readers[file].header, sync_lines[file], buffer, &ndp);
+			int32_t rdp = bcf_get_genotypes(sync_reader->readers[file].header, sync_lines[file], &buffer, &ndp);
 			int32_t max_ploidy = rdp/ind_number[file];
 			if (ploidy[file] < 0) ploidy[file] = rdp/ind_number[file];
 			assert ( rdp>=0 && max_ploidy>0); // GT present

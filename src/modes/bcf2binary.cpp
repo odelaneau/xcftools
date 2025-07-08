@@ -53,6 +53,7 @@ void bcf2binary::convert(string finput, string foutput) {
 		case CONV_BCF_BH: vrb.title("Converting from BCF to XCF [Binary/Haplotype]"); break;
 		case CONV_BCF_SG: vrb.title("Converting from BCF to XCF [Sparse/Genotype]"); break;
 		case CONV_BCF_SH: vrb.title("Converting from BCF to XCF [Sparse/Haplotype]"); break;
+		case CONV_BCF_PP: vrb.title("Converting from BCF to XCF [Sparse/Genotype] + PP"); break;
 	}
 
 	if (region.empty()) vrb.bullet("Region        : All");
@@ -86,6 +87,9 @@ void bcf2binary::convert(string finput, string foutput) {
 	//Allocate input/output buffer
 	int32_t * input_buffer = (int32_t*)malloc(2 * nsamples * sizeof(int32_t));
 	int32_t * output_buffer = (int32_t*)malloc(2 * nsamples * sizeof(int32_t));
+	float * input_probs = (float *)malloc(nsamples * sizeof(float)); 
+	float * output_probs = (float *)malloc(nsamples * sizeof(float)); 
+	
 
 	//Allocate output bitvector for common variants
 	bitvector binary_buffer = bitvector (2 * nsamples);
@@ -101,27 +105,47 @@ void bcf2binary::convert(string finput, string foutput) {
 		bool rare = (maf < minmaf);
 
 		//Get record
-		XR.readRecord(0, reinterpret_cast< char** > (&input_buffer));
+		int32_t n_input_probs = 0;
+		if (CONV_BCF_PP) XR.readRecord(0, reinterpret_cast< char** > (&input_buffer), reinterpret_cast< char** > (&input_probs), &n_input_probs);
+		else XR.readRecord(0, reinterpret_cast< char** > (&input_buffer));
 
 		//Convert
-		uint32_t n_sparse = 0;
+		uint32_t n_sparse = 0, n_sparse_probs = 0;
 		for (uint32_t i = 0 ; i < nsamples ; i++) {
 			bool a0 = (bcf_gt_allele(input_buffer[2*i+0])==1);
 			bool a1 = (bcf_gt_allele(input_buffer[2*i+1])==1);
 			bool mi = (input_buffer[2*i+0] == bcf_gt_missing || input_buffer[2*i+1] == bcf_gt_missing);
+			bool phased = bcf_gt_is_phased(input_buffer[2*i+0]) && !mi;
 
-			if (mi && (mode == CONV_BCF_SH || mode == CONV_BCF_BH))
-				vrb.error("Missing data in phased data is not permitted!");
-
+			if (mi && (mode == CONV_BCF_SH || mode == CONV_BCF_BH || mode == CONV_BCF_PP)) vrb.error("Missing data in phased data is not permitted!");
+			
 			//BCF => SPARSE GENOTYPE
 			if (mode == CONV_BCF_SG) {
-				if (rare) {
-					if (a0 == minor || a1 == minor || mi)
+				if (rare) {	
+					if (a0 == minor || a1 == minor || mi) {
 						output_buffer[n_sparse++] = sparse_genotype(i, (a0!=a1), mi, a0, a1, 0).get();
+					}
 				} else {
 					if (mi) { binary_buffer.set(2*i+0, true); binary_buffer.set(2*i+1, false); }		//Missing as 10
 					else if (a0 == a1) { binary_buffer.set(2*i+0, a0); binary_buffer.set(2*i+1, a1); }
 					else { binary_buffer.set(2*i+0, false); binary_buffer.set(2*i+1, true); }			//Hets as 01
+				}
+			}
+
+			//BCF => SPARSE GENOTYPE + PP
+			if (mode == CONV_BCF_PP) {
+				if (rare) {	
+					if (a0 == minor || a1 == minor || mi) {
+						output_buffer[n_sparse++] = sparse_genotype(i, (a0!=a1), mi, a0, a1, phased).get();
+						//cout << n_input_probs << " " << nsamples<< endl;
+						if (n_input_probs == nsamples) {
+							output_probs[n_sparse_probs++] = input_probs[i];
+							//cout << "PP[" << i << "] = " << input_probs[i] << endl;
+						}
+					}
+				} else {
+					binary_buffer.set(2*i+0, a0);
+					binary_buffer.set(2*i+1, a1);
 				}
 			}
 
@@ -159,18 +183,26 @@ void bcf2binary::convert(string finput, string foutput) {
 		}
 
 		//Write record
-		if (mode == CONV_BCF_SG && rare)
+		if (mode == CONV_BCF_PP && rare) {
+			uint32_t total_size = n_sparse * sizeof(int32_t) + n_sparse_probs * sizeof(float);
+			char * merged_array = (char *)malloc(total_size);
+			memcpy(merged_array, output_buffer, n_sparse * sizeof(int32_t));
+			memcpy(merged_array + n_sparse * sizeof(int32_t), output_probs, n_sparse_probs * sizeof(float));
+			XW.writeRecord(RECORD_SPARSE_PHASEPROBS, merged_array, total_size);
+			free(merged_array);
+		} else if (mode == CONV_BCF_SG && rare) {
 			XW.writeRecord(RECORD_SPARSE_GENOTYPE, reinterpret_cast<char*>(output_buffer), n_sparse * sizeof(int32_t));
-		else if (mode == CONV_BCF_SH && rare)
+		} else if (mode == CONV_BCF_SH && rare) {
 			XW.writeRecord(RECORD_SPARSE_HAPLOTYPE, reinterpret_cast<char*>(output_buffer), n_sparse * sizeof(int32_t));
-		else if (mode == CONV_BCF_SG || mode == CONV_BCF_BG)
+		} else if (mode == CONV_BCF_SG || mode == CONV_BCF_BG) {
 			XW.writeRecord(RECORD_BINARY_GENOTYPE, binary_buffer.bytes, binary_buffer.n_bytes);
-		else
+		} else {
 			XW.writeRecord(RECORD_BINARY_HAPLOTYPE, binary_buffer.bytes, binary_buffer.n_bytes);
+		}
 
 		//Line counting
 		n_lines_comm += !rare || mode == CONV_BCF_BG || mode == CONV_BCF_BH;
-		n_lines_rare += rare && (mode == CONV_BCF_SG || mode == CONV_BCF_SH);
+		n_lines_rare += rare && (mode == CONV_BCF_SG || mode == CONV_BCF_SH || mode == CONV_BCF_PP);
 
 		//Verbose
 		if ((n_lines_comm+n_lines_rare) % 10000 == 0) {

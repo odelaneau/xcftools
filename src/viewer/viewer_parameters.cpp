@@ -48,7 +48,7 @@ void viewer::declare_options() {
 	bpo::options_description opt_output ("Output files");
 	opt_output.add_options()
 			("output,o", bpo::value< string >()->default_value("-"), "Output file [- for stdout]")
-			("format,O", bpo::value< string >()->default_value("bcf"), "Output file format")
+			("format,O", bpo::value< string >()->default_value("bcf"), "Output file format [pp|sg|sh|bg|bh|bcf]")
 			("keep-info","Keep INFO field instead of creating a minimal BCF file")
 			("log", bpo::value< string >(), "Output log file");
 

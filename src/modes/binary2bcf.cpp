@@ -156,7 +156,7 @@ void binary2bcf::convert(string finput, string foutput) {
 			int32_t n_elements = XR.readRecord(idx_file, reinterpret_cast< char** > (&input_buffer)) / (2*sizeof(int32_t));
 			//Set all genotypes as major
 			bool major = (XR.getAF()>0.5f);
-			std::fill(output_buffer, output_buffer+2*nsamples, bcf_gt_unphased(major));
+			std::fill(output_buffer, output_buffer+2*nsamples, bcf_gt_phased(major));
 			//Loop over sparse genotypes
 			for(uint32_t r = 0 ; r < n_elements ; r++) {
 				sparse_genotype rg;
@@ -168,10 +168,7 @@ void binary2bcf::convert(string finput, string foutput) {
 				} else if (rg.pha) {
 					output_buffer[2*rg.idx+0] = bcf_gt_phased(rg.al0);
 					output_buffer[2*rg.idx+1] = bcf_gt_phased(rg.al1);
-				} else {
-					output_buffer[2*rg.idx+0] = bcf_gt_unphased(rg.al0);
-					output_buffer[2*rg.idx+1] = bcf_gt_unphased(rg.al1);
-				}
+				} else vrb.bullet ("Sparse genotype with unphased alleles found in sparse phase probabilities record at " + XR.chr + ":" + stb.str(XR.pos) + ". This is not supported.");
 			}
 			/*
 			for(uint32_t r = 0 ; r < n_elements ; r++) {
