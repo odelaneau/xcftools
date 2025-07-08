@@ -30,7 +30,7 @@
 #include "fill_tags_argument_set.h"
 #include <utils/xcf.h>
 #include <utils/bitvector.h>
-#include <objects/sparse_genotype.h>
+#include <utils/sparse_genotype.h>
 
 static const int mendel_lt[27] = {
     0,  // kg=0, fg=0, mg=0

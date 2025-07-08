@@ -29,7 +29,7 @@
 #include <modes/binary2bcf.h>
 #include <utils/xcf.h>
 #include <utils/bitvector.h>
-#include <objects/sparse_genotype.h>
+#include <utils/sparse_genotype.h>
 
 using namespace std;
 
@@ -91,6 +91,7 @@ void binary2bcf::convert(string finput, string foutput) {
 			XW.hts_record = XR.sync_lines[0];
 
 		//Get type of record
+		bool flagProbabilities = false;
 		type = XR.typeRecord(idx_file);
 
 		//Convert from BCF; copy the data over
@@ -159,8 +160,7 @@ void binary2bcf::convert(string finput, string foutput) {
 			//Loop over sparse genotypes
 			for(uint32_t r = 0 ; r < n_elements ; r++) {
 				sparse_genotype rg;
-				rg.set(input_buffer[2*r+0]);
-				probabilities[r] = bit_cast<float>(input_buffer[2*r+1]);
+				rg.set(input_buffer[r]);
 				assert(rg.idx < nsamples);
 				if (rg.mis) {
 					output_buffer[2*rg.idx+0] = bcf_gt_missing;
@@ -171,6 +171,24 @@ void binary2bcf::convert(string finput, string foutput) {
 				} else {
 					output_buffer[2*rg.idx+0] = bcf_gt_unphased(rg.al0);
 					output_buffer[2*rg.idx+1] = bcf_gt_unphased(rg.al1);
+				}
+			}
+			for(uint32_t r = 0 ; r < n_elements ; r++) {
+				float prob = bit_cast<float>(input_buffer[n_elements + r]);
+				if (prob != 1.0f) flagProbabilities = true;
+			}
+			if (flagProbabilities) {
+				if (sizeof(float) != sizeof(uint32_t)) vrb.error("PP format requires float to be 4 bytes long, which is not the case on this platform");
+				//Init probabilities
+				for (uint32_t i = 0 ; i < nsamples ; i++) bcf_float_set_missing(probabilities[i]);
+				//Loop over sparse genotypes
+				for(uint32_t r = 0 ; r < n_elements ; r++) {
+					float prob = bit_cast<float>(input_buffer[n_elements + r]);
+					if (prob != 1.0f) {
+						sparse_genotype rg;
+						rg.set(input_buffer[r]);
+						probabilities[rg.idx] = prob;
+					}
 				}
 			}
 		}
@@ -193,7 +211,10 @@ void binary2bcf::convert(string finput, string foutput) {
 
 
 		//Write record
-		XW.writeRecord(RECORD_BCFVCF_GENOTYPE, reinterpret_cast<char*>(output_buffer), 2 * nsamples * sizeof(int32_t));
+		if (flagProbabilities)
+			XW.writeRecord(RECORD_BCFVCF_GENOTYPE, reinterpret_cast<char*>(output_buffer), 2 * nsamples * sizeof(int32_t), reinterpret_cast<char*>(probabilities));
+		else 
+			XW.writeRecord(RECORD_BCFVCF_GENOTYPE, reinterpret_cast<char*>(output_buffer), 2 * nsamples * sizeof(int32_t));
 
 		//Counting
 		n_lines++;

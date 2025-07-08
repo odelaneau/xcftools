@@ -29,7 +29,7 @@
 #include <modes/bcf2binary.h>
 #include <utils/xcf.h>
 #include <utils/bitvector.h>
-#include <objects/sparse_genotype.h>
+#include <utils/sparse_genotype.h>
 
 using namespace std;
 

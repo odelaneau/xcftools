@@ -26,7 +26,7 @@
 #include "../versions/versions.h"
 #include <modes/binary2binary.h>
 #include <utils/xcf.h>
-#include <objects/sparse_genotype.h>
+#include <utils/sparse_genotype.h>
 
 binary2binary::binary2binary(std::string _region, float _minmaf, int _nthreads, int _mode, bool _drop_info)
 {

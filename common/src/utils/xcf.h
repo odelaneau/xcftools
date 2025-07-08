@@ -879,10 +879,13 @@ public:
 		bcf_update_info_int32(hts_hdr, hts_record, "SEEK", vsk, 4);
 		writeRecord(hts_record);
 	}
-	//Write genotypes
-	void writeRecord(uint32_t type, char * buffer, uint32_t nbytes) {
+	//Write genotypes + PPs
+	void writeRecord(uint32_t type, char * buffer, uint32_t nbytes, char * probabilities = NULL) {
 		if (hts_genotypes) {
 			bcf_update_genotypes(hts_hdr, hts_record, buffer, nbytes/sizeof(int32_t));
+			if (probabilities) {
+				bcf_update_format_float(hts_hdr, hts_record, "PP", probabilities, nbytes/(2*sizeof(float)));
+			}
 		} else {
 			vsk[0] = type;
 			vsk[1] = bin_seek / MOD30BITS;		//Split addr in 2 30bits integer (max number of sparse genotypes ~1.152922e+18)
@@ -894,6 +897,7 @@ public:
 		}
 		writeRecord(hts_record);
 	}
+	
 	//Write only info field (empty genotypes)
 	void writeRecord() {
 		writeRecord(hts_record);
