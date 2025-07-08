@@ -173,10 +173,13 @@ void binary2bcf::convert(string finput, string foutput) {
 					output_buffer[2*rg.idx+1] = bcf_gt_unphased(rg.al1);
 				}
 			}
+			/*
 			for(uint32_t r = 0 ; r < n_elements ; r++) {
 				float prob = bit_cast<float>(input_buffer[n_elements + r]);
 				if (prob != 1.0f) flagProbabilities = true;
-			}
+			}*/
+			flagProbabilities = true;
+			
 			if (flagProbabilities) {
 				if (sizeof(float) != sizeof(uint32_t)) vrb.error("PP format requires float to be 4 bytes long, which is not the case on this platform");
 				//Init probabilities
@@ -184,11 +187,9 @@ void binary2bcf::convert(string finput, string foutput) {
 				//Loop over sparse genotypes
 				for(uint32_t r = 0 ; r < n_elements ; r++) {
 					float prob = bit_cast<float>(input_buffer[n_elements + r]);
-					if (prob != 1.0f) {
-						sparse_genotype rg;
-						rg.set(input_buffer[r]);
-						probabilities[rg.idx] = prob;
-					}
+					sparse_genotype rg;
+					rg.set(input_buffer[r]);
+					probabilities[rg.idx] = std::round(prob * 1000) / 1000;
 				}
 			}
 		}
