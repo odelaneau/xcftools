@@ -89,89 +89,79 @@ void bcf2binary::convert(string finput, string foutput) {
 	int32_t * output_buffer = (int32_t*)malloc(2 * nsamples * sizeof(int32_t));
 	float * input_probs = (float *)malloc(nsamples * sizeof(float)); 
 	float * output_probs = (float *)malloc(nsamples * sizeof(float)); 
-	
-
-	//Allocate output bitvector for common variants
 	bitvector binary_buffer = bitvector (2 * nsamples);
 
 	//Proceed with conversion
-	uint32_t n_lines_rare = 0, n_lines_comm = 0;
-	while (XR.nextRecord())
-	{
+	uint32_t n_pp_lost = 0, n_pp_kept = 0, n_lines = 0;
+	vector < uint32_t > n_target_types = vector < uint32_t > (RECORD_NUMBER_TYPES, 0);
+	while (XR.nextRecord()) {
 		//Is that a rare variant?
 		float af =  XR.getAF();
 		float maf = min(af, 1.0f-af);
 		bool minor = (af < 0.5f);
 		bool rare = (maf < minmaf);
-
+		
 		//Get record
 		int32_t n_input_probs = 0;
 		if (CONV_BCF_PP) XR.readRecord(0, reinterpret_cast< char** > (&input_buffer), reinterpret_cast< char** > (&input_probs), &n_input_probs);
 		else XR.readRecord(0, reinterpret_cast< char** > (&input_buffer));
+		bool hasPP = (n_input_probs == nsamples);
 
+		// Conversion mode
+		int32_t target_type = RECORD_BINARY_GENOTYPE;
+		if (mode == CONV_BCF_PP && rare && hasPP) target_type = RECORD_SPARSE_PHASEPROBS;
+		else if (mode == CONV_BCF_PP && rare) target_type = RECORD_SPARSE_HAPLOTYPE;
+		else if (mode == CONV_BCF_SG && rare) target_type = RECORD_SPARSE_GENOTYPE;
+		else if (mode == CONV_BCF_SH && rare) target_type = RECORD_SPARSE_HAPLOTYPE;
+		else if (mode == CONV_BCF_BH || mode == CONV_BCF_PP || mode == CONV_BCF_SH) target_type = RECORD_BINARY_HAPLOTYPE;
+		else target_type = RECORD_BINARY_GENOTYPE;
+		if (hasPP) {
+			n_pp_lost += (target_type != RECORD_SPARSE_PHASEPROBS);
+			n_pp_kept += (target_type == RECORD_SPARSE_PHASEPROBS);
+		}
+		n_target_types[target_type]++;
+		
 		//Convert
 		uint32_t n_sparse = 0, n_sparse_probs = 0;
 		for (uint32_t i = 0 ; i < nsamples ; i++) {
 			bool a0 = (bcf_gt_allele(input_buffer[2*i+0])==1);
 			bool a1 = (bcf_gt_allele(input_buffer[2*i+1])==1);
 			bool mi = (input_buffer[2*i+0] == bcf_gt_missing || input_buffer[2*i+1] == bcf_gt_missing);
-			bool phased = bcf_gt_is_phased(input_buffer[2*i+0]) && !mi;
+			bool phased = (bcf_gt_is_phased(input_buffer[2*i+0]) || bcf_gt_is_phased(input_buffer[2*i+1])) && !mi;
 
-			if (mi && (mode == CONV_BCF_SH || mode == CONV_BCF_BH || mode == CONV_BCF_PP)) vrb.error("Missing data in phased data is not permitted!");
-			
-			//BCF => SPARSE GENOTYPE
-			if (mode == CONV_BCF_SG) {
-				if (rare) {	
-					if (a0 == minor || a1 == minor || mi) {
-						output_buffer[n_sparse++] = sparse_genotype(i, (a0!=a1), mi, a0, a1, 0).get();
-					}
-				} else {
-					if (mi) { binary_buffer.set(2*i+0, true); binary_buffer.set(2*i+1, false); }		//Missing as 10
-					else if (a0 == a1) { binary_buffer.set(2*i+0, a0); binary_buffer.set(2*i+1, a1); }
-					else { binary_buffer.set(2*i+0, false); binary_buffer.set(2*i+1, true); }			//Hets as 01
+			if (mi && (target_type ==  RECORD_SPARSE_PHASEPROBS || target_type == RECORD_SPARSE_HAPLOTYPE || target_type == RECORD_BINARY_HAPLOTYPE))
+				vrb.error("Missing data in phased data is not permitted!");
+
+			if (target_type == RECORD_SPARSE_PHASEPROBS) {
+				if (a0 == minor || a1 == minor || mi) {
+					output_buffer[n_sparse++] = sparse_genotype(i, (a0!=a1), mi, a0, a1, phased).get();
+					output_probs[n_sparse_probs++] = input_probs[i];
 				}
 			}
 
-			//BCF => SPARSE GENOTYPE + PP
-			if (mode == CONV_BCF_PP) {
-				if (rare) {	
-					if (a0 == minor || a1 == minor || mi) {
-						output_buffer[n_sparse++] = sparse_genotype(i, (a0!=a1), mi, a0, a1, phased).get();
-						//cout << n_input_probs << " " << nsamples<< endl;
-						if (n_input_probs == nsamples) {
-							output_probs[n_sparse_probs++] = input_probs[i];
-							//cout << "PP[" << i << "] = " << input_probs[i] << endl;
-						}
-					}
-				} else {
-					binary_buffer.set(2*i+0, a0);
-					binary_buffer.set(2*i+1, a1);
+			if (target_type == RECORD_SPARSE_GENOTYPE) {
+				if (a0 == minor || a1 == minor || mi) {
+					output_buffer[n_sparse++] = sparse_genotype(i, (a0!=a1), mi, a0, a1, phased).get();
 				}
 			}
 
-			//BCF => SPARSE HAPLOTYPE
-			if (mode == CONV_BCF_SH) {
-				if (rare) {
-					if (a0 == minor) output_buffer[n_sparse++] = 2*i+0;
-					if (a1 == minor) output_buffer[n_sparse++] = 2*i+1;
-				} else {
-					binary_buffer.set(2*i+0, a0);
-					binary_buffer.set(2*i+1, a1);
-				}
+			if (target_type == RECORD_SPARSE_HAPLOTYPE) {
+				if (a0 == minor) output_buffer[n_sparse++] = 2*i+0;
+				if (a1 == minor) output_buffer[n_sparse++] = 2*i+1;
 			}
 
-			//BCF => BINARY GENOTYPE
-			if (mode == CONV_BCF_BG) {
-				if (mi) { binary_buffer.set(2*i+0, true); binary_buffer.set(2*i+1, false); }		//Missing as 10
-				else if (a0 == a1) { binary_buffer.set(2*i+0, a0); binary_buffer.set(2*i+1, a1); }
-				else { binary_buffer.set(2*i+0, false); binary_buffer.set(2*i+1, true); }			//Hets as 01
-			}
-
-			//BCF => BINARY HAPLOTYPE
-			if (mode == CONV_BCF_BH) {
+			if (target_type == RECORD_BINARY_HAPLOTYPE) {
 				binary_buffer.set(2*i+0, a0);
 				binary_buffer.set(2*i+1, a1);
 			}
+
+			if (target_type == RECORD_BINARY_GENOTYPE) {
+				if (mi) { binary_buffer.set(2*i+0, true); binary_buffer.set(2*i+1, false); }
+				else if (a0 == a1) { binary_buffer.set(2*i+0, a0); binary_buffer.set(2*i+1, a1); }
+				else { binary_buffer.set(2*i+0, false); binary_buffer.set(2*i+1, true); }
+			}
+
+			n_lines ++ ;
 		}
 
 		//Copy over variant information
@@ -183,36 +173,37 @@ void bcf2binary::convert(string finput, string foutput) {
 		}
 
 		//Write record
-		if (mode == CONV_BCF_PP && rare) {
+		if (target_type == RECORD_SPARSE_PHASEPROBS) {
 			uint32_t total_size = n_sparse * sizeof(int32_t) + n_sparse_probs * sizeof(float);
 			char * merged_array = (char *)malloc(total_size);
 			memcpy(merged_array, output_buffer, n_sparse * sizeof(int32_t));
 			memcpy(merged_array + n_sparse * sizeof(int32_t), output_probs, n_sparse_probs * sizeof(float));
-			XW.writeRecord(RECORD_SPARSE_PHASEPROBS, merged_array, total_size);
+			XW.writeRecord(target_type, merged_array, total_size);
 			free(merged_array);
-		} else if (mode == CONV_BCF_SG && rare) {
-			XW.writeRecord(RECORD_SPARSE_GENOTYPE, reinterpret_cast<char*>(output_buffer), n_sparse * sizeof(int32_t));
-		} else if (mode == CONV_BCF_SH && rare) {
-			XW.writeRecord(RECORD_SPARSE_HAPLOTYPE, reinterpret_cast<char*>(output_buffer), n_sparse * sizeof(int32_t));
-		} else if (mode == CONV_BCF_SG || mode == CONV_BCF_BG) {
-			XW.writeRecord(RECORD_BINARY_GENOTYPE, binary_buffer.bytes, binary_buffer.n_bytes);
-		} else {
-			XW.writeRecord(RECORD_BINARY_HAPLOTYPE, binary_buffer.bytes, binary_buffer.n_bytes);
-		}
-
-		//Line counting
-		n_lines_comm += !rare || mode == CONV_BCF_BG || mode == CONV_BCF_BH;
-		n_lines_rare += rare && (mode == CONV_BCF_SG || mode == CONV_BCF_SH || mode == CONV_BCF_PP);
+		} else if (target_type == RECORD_SPARSE_GENOTYPE || target_type == RECORD_SPARSE_HAPLOTYPE) {
+			XW.writeRecord(target_type, reinterpret_cast<char*>(output_buffer), n_sparse * sizeof(int32_t));
+		} else XW.writeRecord(target_type, binary_buffer.bytes, binary_buffer.n_bytes);
 
 		//Verbose
-		if ((n_lines_comm+n_lines_rare) % 10000 == 0) {
-			if (mode == CONV_BCF_BG || mode == CONV_BCF_BH) vrb.bullet("Number of BCF records processed: N=" + stb.str(n_lines_comm));
-			else vrb.bullet("Number of BCF records processed: Nc=" + stb.str(n_lines_comm) + "/ Nr=" + stb.str(n_lines_rare));
+		if (n_lines % 10000 == 0) {
+			vrb.bullet("Number of BCF records processed: [" + stb.str(n_target_types[RECORD_BINARY_GENOTYPE]) + " G, " +
+				stb.str(n_target_types[RECORD_BINARY_HAPLOTYPE]) + " H, " +
+				stb.str(n_target_types[RECORD_SPARSE_GENOTYPE]) + " SG, " +
+				stb.str(n_target_types[RECORD_SPARSE_HAPLOTYPE]) + " SH, " +
+				stb.str(n_target_types[RECORD_SPARSE_PHASEPROBS]) + " PP]");
 		}
 	}
 
-	if (mode == CONV_BCF_BG || mode == CONV_BCF_BH) vrb.bullet("Number of BCF records processed: N=" + stb.str(n_lines_comm));
-	else vrb.bullet("Number of BCF records processed: Nc=" + stb.str(n_lines_comm) + "/ Nr=" + stb.str(n_lines_rare));
+	vrb.bullet("Number of BCF records processed: [" + stb.str(n_target_types[RECORD_BINARY_GENOTYPE]) + " G, " +
+				stb.str(n_target_types[RECORD_BINARY_HAPLOTYPE]) + " H, " +
+				stb.str(n_target_types[RECORD_SPARSE_GENOTYPE]) + " SG, " +
+				stb.str(n_target_types[RECORD_SPARSE_HAPLOTYPE]) + " SH, " +
+				stb.str(n_target_types[RECORD_SPARSE_PHASEPROBS]) + " PP]");
+
+	if (n_pp_lost > 0 || n_pp_kept > 0) {
+		vrb.bullet("Number of PP lost: " + stb.str(n_pp_lost) + " / kept: " + stb.str(n_pp_kept));
+		if (n_pp_lost > 0) vrb.warning("PP were not written for some rare variants, consider decreasing --maf value");
+	}
 
 	//Free
 	free(input_buffer);

@@ -161,6 +161,7 @@ void binary2bcf::convert(string finput, string foutput) {
 			for(uint32_t r = 0 ; r < n_elements ; r++) {
 				sparse_genotype rg;
 				rg.set(input_buffer[r]);
+				//cout << "Sparse genotype: " << rg.idx << " m=" << rg.mis << " p=" << rg.pha << " a0=" << rg.al0 << " a1=" << rg.al1 << endl;
 				assert(rg.idx < nsamples);
 				if (rg.mis) {
 					output_buffer[2*rg.idx+0] = bcf_gt_missing;
@@ -170,25 +171,18 @@ void binary2bcf::convert(string finput, string foutput) {
 					output_buffer[2*rg.idx+1] = bcf_gt_phased(rg.al1);
 				} else vrb.bullet ("Sparse genotype with unphased alleles found in sparse phase probabilities record at " + XR.chr + ":" + stb.str(XR.pos) + ". This is not supported.");
 			}
-			/*
+			if (sizeof(float) != sizeof(uint32_t)) vrb.error("PP format requires float to be 4 bytes long, which is not the case on this platform");
+			//Init probabilities
+			for (uint32_t i = 0 ; i < nsamples ; i++) bcf_float_set_missing(probabilities[i]);
 			for(uint32_t r = 0 ; r < n_elements ; r++) {
-				float prob = bit_cast<float>(input_buffer[n_elements + r]);
-				if (prob != 1.0f) flagProbabilities = true;
-			}*/
-			flagProbabilities = true;
-			
-			if (flagProbabilities) {
-				if (sizeof(float) != sizeof(uint32_t)) vrb.error("PP format requires float to be 4 bytes long, which is not the case on this platform");
-				//Init probabilities
-				for (uint32_t i = 0 ; i < nsamples ; i++) bcf_float_set_missing(probabilities[i]);
-				//Loop over sparse genotypes
-				for(uint32_t r = 0 ; r < n_elements ; r++) {
+				if (input_buffer[n_elements + r] != bcf_float_missing) {
 					float prob = bit_cast<float>(input_buffer[n_elements + r]);
 					sparse_genotype rg;
 					rg.set(input_buffer[r]);
 					probabilities[rg.idx] = std::round(prob * 1000) / 1000;
 				}
 			}
+			flagProbabilities = true;
 		}
 		//Convert from sparse haplotypes
 		else if (type == RECORD_SPARSE_HAPLOTYPE) {
