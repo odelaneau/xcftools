@@ -82,9 +82,10 @@ void binary2binary::convert(std::string finput, std::string foutput)
 
 	if (mode == CONV_BCF_SG || mode == CONV_BCF_SH) vrb.bullet("Min MAF       : " + stb.str(minmaf));
 
-
-	xcf_reader XR(1);
-	const uint32_t idx_file = XR.addFile(finput);
+	xcf_reader XR(region, nthreads);
+	const int32_t idx_file = XR.addFile(finput);
+	//xcf_reader XR(1);
+	//const uint32_t idx_file = XR.addFile(finput);
 	const int32_t typef = XR.typeFile(idx_file);
 	if (typef != FILE_BINARY) vrb.error("[" + finput + "] is not a XCF file");
 	uint32_t nsamples_input = XR.ind_names[idx_file].size();
